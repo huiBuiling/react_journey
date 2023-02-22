@@ -1,7 +1,7 @@
 import { Component } from "react";
 import * as THREE from "three";
 // import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-// import { GUI } from "three/examples/jsm/libs/dat.gui.module";
+import * as dat from "lil-gui";
 
 let canvas: any;
 let scene: any, camera: any, renderer: any;
@@ -217,19 +217,12 @@ export default class BaseWebgl_2 extends Component {
     var ambient = new THREE.AmbientLight(0x444444);
     scene.add(ambient);
 
-    const ctrlObj = function () {
-      function removeFindCube() {
-        const findObj = scene.getObjectByName("hui", false);
-        if (findObj instanceof THREE.Mesh) {
-          scene.remove(findObj);
-
-          console.log("getObjectByName", scene.getObjectByName("hui", false));
-        }
-      }
+    const ctrlObj = {
+      removeFindCube: () => this.removeFindCube(),
     };
 
-    // let ctrl = new GUI();
-    // ctrl.add(ctrlObj, "removeFindCube");
+    let ctrl = new dat.GUI();
+    ctrl.add(ctrlObj, "removeFindCube");
   };
 
   // 删除对象
@@ -246,7 +239,7 @@ export default class BaseWebgl_2 extends Component {
     return (
       <div id="webgl">
         <div
-          style={{ position: "fixed", right: 10, top: 10, background: "#fff", padding: 10, cursor: "pointer" }}
+          style={{ position: "fixed", left: 10, top: 10, background: "#fff", padding: 10, cursor: "pointer" }}
           onClick={() => this.removeFindCube()}
         >
           删除场景

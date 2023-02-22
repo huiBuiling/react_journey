@@ -76,4 +76,15 @@ removeFindCube = () => {
 mesh.castShadow = true
 ```
 
+- import \* as dat from "lil-gui";
+
+```
+const ctrlObj = {
+  removeFindCube: () => this.removeFindCube(),
+};
+
+let ctrl = new dat.GUI();
+ctrl.add(ctrlObj, "removeFindCube");
+```
+
 ![image](img/other/mesh.png)
