@@ -1,11 +1,11 @@
-# react_journey
-
 # code address
 
 - https://vercel.com/huibuiling/react-journey
 - https://react-journey.vercel.app/
 
 # 基础案例
+
+![image](../img/gdemo_1.png)
 
 ```
 <!DOCTYPE html>
@@ -85,15 +85,15 @@
 
 ## 程序结构
 
-![image](./md/jiegou.png)
+![image](../jiegou.png)
 
 ## 梳理
 
-![image](./md/shuli.png)
+![image](../shuli.png)
 
 ## Three.js 对 WebGL 的封装
 
-![image](./md/webgl.png)
+![image](../webgl.png)
 
 # requestAnimationFrame 周期性渲染
 
@@ -101,6 +101,8 @@
 - 而是向浏览器发起一个执行某函数的请求， 什么时候会执行由浏览器决定，一般默认保持 60FPS 的频率，大约每 16.7ms 调用一次 requestAnimationFrame()方法指定的函数
 - 60FPS 是理想的情况下，如果渲染的场景比较复杂或者说硬件性能有限可能会低于这个频率。
 - FPS(屏幕刷新率)
+
+![image](../img/gdemo_2.gif)
 
 ```
 function render() {
@@ -116,6 +118,8 @@ render();
 - OrbitControls.js
 - 支持鼠标左中右键操作和键盘方向键操作
 
+![image](../img/gdemo_3.gif)
+
 ```
 // 创建控件对象
 var controls = new THREE.OrbitControls(camera,renderer.domElement);
@@ -129,7 +133,9 @@ controls.addEventListener('change', render);
 - 旋转：拖动—鼠标左键
 - 平移：拖动—鼠标右键
 
-- 注意： 开发中不要同时使用 requestAnimationFrame() 或 controls.addEventListener('change', render) 调用同一个函数，这样会冲突
+- **注意**： 开发中不要同时使用以下方法调用同一个函数，会冲突
+  - requestAnimationFrame()
+  - controls.addEventListener('change', render)
 
 # 插入新的几何体
 
@@ -151,6 +157,8 @@ var geometry = new THREE.IcosahedronGeometry(50);
 ```
 
 ## 同时绘制了立方体、球体和圆柱三个几何体对应的网格模型
+
+![image](../img/gdemo_4.png)
 
 - 立方体网格模型
 
@@ -190,3 +198,113 @@ scene.add(mesh3); //
 ```
 
 # 材质效果
+
+## 半透明效果
+
+![image](../img/gdemo_5.png)
+
+- 更改场景中的球体材质对象构造函数 THREE.MeshLambertMaterial()的参数，添加 opacity 和 transparent 属性，opacity 的值是 0~1 之间，transparent 表示是否开启透明度效果， 默认是 false 表示透明度设置不起作用，值设置为 true，网格模型就会呈现透明的效果
+
+```
+// 材质对象
+var sphereMaterial=new THREE.MeshLambertMaterial({
+    color:0xff0000,
+    opacity:0.7,
+    transparent:true
+});
+
+or 材质对象的属性设置
+
+material.opacity = 0.5 ;
+material.transparent = true ;
+
+```
+
+### 材质常见属性
+
+<table>
+  <thead>
+      <th>材质属性</th>
+      <th>简介</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>color</td>
+      <td>材质颜色，比如蓝色 0x0000ff</td>
+    </tr>
+    <tr>
+      <td>opacity</td>
+      <td>透明度设置，0 表示完全透明，1 表示完全不透明</td>
+    </tr>
+     <tr>
+      <td>transparent</td>
+      <td>是否开启透明，默认 false</td>
+    </tr>
+    <tr>
+      <td>wireframe</td>
+      <td>将几何图形渲染为线框。 默认值为 false</td>
+    </tr>
+  </tbody>
+</table>
+
+### 添加高光效果
+
+![image](../img/gdemo_6.png)
+
+```
+var sphereMaterial = new THREE.MeshPhongMaterial({
+    color:0x0000ff,
+    specular:0x4488ee,
+    shininess:12
+});
+```
+
+- 漫反射: MeshLambertMaterial()
+- 镜面反射: MeshPhongMaterial()
+
+### 材质类型
+
+<table>
+  <thead>
+      <th>材质类型</th>
+      <th>功能</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>MeshBasicMaterial</td>
+      <td>基础网格材质，不受光照影响的材质</td>
+    </tr>
+    <tr>
+      <td>MeshLambertMaterial</td>
+      <td>Lambert网格材质，与光照有反应，漫反射</td>
+    </tr>
+     <tr>
+      <td>MeshPhongMaterial</td>
+      <td>高光Phong材质,与光照有反应</td>
+    </tr>
+    <tr>
+      <td>MeshStandardMaterial</td>
+      <td>PBR物理材质，相比较高光Phong材质可以更好的模拟金属、玻璃等效果</td>
+    </tr>
+  </tbody>
+</table>
+
+# 光源光照强度
+
+- 通过光源构造函数的参数可以设置光源的颜色，一般设置明暗程度不同的白光 RGB 三个分量值是一样的
+- 把 THREE.AmbientLight(0x444444); => 光照参数 0xffffff,立方体渲染效果更明亮
+
+## 光源位置
+
+![image](../img/gdemo_7.gif)
+
+```
+// 点光源
+var point = new THREE.PointLight(0x444444);
+// point.position.set(400, 200, 300); //点光源位置
+point.position.set(0, 0, 0); //点光源位置
+
+var point2 = new THREE.AmbientLight(0x444444);
+point2.position.set(400, 200, 300); //点光源位置
+scene.add(point, point2); //点光源添加到场景中
+```

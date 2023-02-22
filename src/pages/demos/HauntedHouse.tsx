@@ -34,6 +34,15 @@ export default class HauntedHouse extends Component {
   }
 
   init = () => {
+    this.initBase();
+    this.initBasicMaterial();
+
+    // light
+    this.initLight();
+    this.initGui();
+  };
+
+  initBase() {
     clock = new Clock();
 
     // 生成场景
@@ -56,14 +65,7 @@ export default class HauntedHouse extends Component {
 
     const threeMain = document.getElementById("webgl");
     threeMain?.appendChild(renderer.domElement);
-
-    this.initBasicMaterial();
-
-    // light
-    this.initLight();
-
-    this.initGui();
-  };
+  }
 
   initLight() {
     ambientLight = new AmbientLight(0xffffff, 0.5);

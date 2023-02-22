@@ -22,6 +22,10 @@ export default {
     { path: "/3DText", component: "@/pages/demos/3DText" },
     { path: "/dlight", component: "@/pages/lights/DLights" },
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
+
+    // http://www.webgl3d.cn/Three.js/?_blank
+    { path: "/gdemo", component: "@/pages/1_demo/index" },
+    { path: "/gdemo2", component: "@/pages/2_demo/index" },
   ],
   // publicPath: "/public/",
   publicPath: "/",
