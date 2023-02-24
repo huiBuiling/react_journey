@@ -25,7 +25,9 @@ export default {
 
     // http://www.webgl3d.cn/Three.js/?_blank
     { path: "/gdemo", component: "@/pages/1_demo/index" },
-    { path: "/gdemo2", component: "@/pages/2_demo/index" },
+    { path: "/geometry", component: "@/pages/geometry/index" },
+    { path: "/material", component: "@/pages/material/index" },
+    { path: "/video", component: "@/pages/videoStu/index" },
   ],
   // publicPath: "/public/",
   publicPath: "/",
