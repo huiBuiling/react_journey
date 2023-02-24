@@ -12,11 +12,9 @@ class VideoDemo extends React.Component {
   }
 
   init() {
-    // video: true
-    navigator.mediaDevices.getUserMedia({ audio: true, video: { width: 900, height: 460 } }).then(
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
       (stream) => {
-        // 通过 MediaRecorder 记录获取到的媒体流
-        this.recorder = new MediaRecorder(stream);
+        this.recorder = new window.MediaRecorder(stream);
         this.setState({
           stream: stream,
         });
@@ -30,35 +28,24 @@ class VideoDemo extends React.Component {
   // 给record绑定事件的回调
   bindEvents() {
     this.recorder.ondataavailable = (e) => {
-      console.log("e", e);
       this.setState({
         chunk: e.data,
       });
-      this.renderUrl(e.data);
     };
-
     this.recorder.onstop = () => {
-      console.log("this.state.chunk", this.state.chunk);
-      // { type: "video/webm" }   {type: "video/mp4"} { type: this.mimeType }
-      // this.renderUrl(this.state.chunk);
+      let blob = new Blob([this.state.chunk], { type: "video/webm" });
+      let videoStream = URL.createObjectURL(blob);
+      this.setState({ chunkURL: videoStream });
+      setTimeout(() => {
+        console.log(this.state.chunkURL);
+      }, 5000);
+      this.refs.newvideo.play();
     };
   }
-
-  renderUrl = (data) => {
-    const type = "video/webm";
-    let blob = new Blob([data], { type: type });
-    let videoStream = URL.createObjectURL(blob);
-    this.setState({ chunkURL: videoStream });
-    setTimeout(() => {
-      console.log(this.state.chunkURL);
-      this.refs.newvideo.play();
-    }, 5000);
-  };
-
   // 点击开始
   clickStart() {
     this.onPreview();
-    this.onStart();
+    // this.onStart();
     this.bindEvents();
   }
   onPreview() {
@@ -92,7 +79,7 @@ class VideoDemo extends React.Component {
           ""
         )}
         {/* 这个video标签是录制完后把录制之后的数据处理为二进制流后进行展示使用 */}
-        <video controls src={this.state.chunkURL} style={{ width: "100vw", height: "50vh" }} ref="newvideo"></video>
+        <video src={this.state.chunkURL} style={{ width: "100vw", height: "50vh" }} ref="newvideo"></video>
       </div>
     );
   }
