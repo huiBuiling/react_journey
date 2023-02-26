@@ -5,6 +5,6 @@
 /src/.umi
 /src/.umi-production
 /src/.umi-test
-/dist
+# /dist
 
 .vercel
