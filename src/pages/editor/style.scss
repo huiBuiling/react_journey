@@ -1,0 +1,86 @@
+.webgl {
+}
+.right {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100%;
+  background: #3c3c3c;
+  border-left: 1px solid #3c3c3c;
+}
+.dir {
+  width: 350px;
+  height: 300px;
+  color: #fff;
+  overflow: hidden;
+  // padding: 0 6px;
+  border-bottom: 1px solid #fff;
+  .scene {
+    height: 40px;
+    line-height: 40px;
+    color: #000;
+    background: #fff;
+    width: 100px;
+    text-align: center;
+  }
+  .dir_con {
+    height: 230px;
+    background: #f1f3f4;
+    overflow: auto;
+    color: #666;
+    font-size: 12px;
+    padding: 15px 20px;
+    & > div {
+      margin: 5px;
+    }
+    .type {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #ddd;
+      text-align: center;
+      border-radius: 50%;
+    }
+    .Object3D {
+      background: #aaaaee;
+    }
+    .Geometry {
+      background: #aaeeaa;
+    }
+    .Material {
+      background: #eeaaee;
+    }
+    .Mesh {
+      background: #8888ee;
+    }
+
+    .opener {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin: 0px 4px;
+      vertical-align: top;
+      text-align: center;
+      padding: 4px;
+      color: #666;
+      white-space: nowrap;
+    }
+    .opener.open:after {
+      content: "−";
+    }
+    .opener.closed:after {
+      content: "+";
+    }
+  }
+}
+
+.obj {
+  margin-top: 1px;
+  height: calc(100% - 300px);
+  .obj_con {
+    height: calc(100% - 73px);
+  }
+  .scene {
+    // background: #f1f3f4;
+  }
+}

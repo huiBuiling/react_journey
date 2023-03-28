@@ -1,0 +1,43 @@
+.dir {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 300px;
+  background: #3c3c3c;
+  color: #fff;
+  overflow: auto;
+  padding: 10px;
+}
+
+#webgl {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  background: radial-gradient(circle, white, rgb(131, 144, 148));
+  background: -ms-radial-gradient(circle, white, rgb(131, 144, 148));
+  background: -webkit-linear-gradient(circle, white, rgb(131, 144, 148));
+  background: -moz-linear-gradient(circle, white, rgb(131, 144, 148));
+}
+.play {
+  position: fixed;
+  right: 55px;
+  bottom: 36px;
+  width: 80px;
+  height: 36px;
+  line-height: 36px;
+  z-index: 2;
+  cursor: pointer;
+  color: #fff;
+  background: lightcoral;
+  text-align: center;
+  border-radius: 5px;
+  p {
+    margin: 0;
+  }
+  /* img {
+    width: 100%;
+    height: 100%;
+  } */
+}
