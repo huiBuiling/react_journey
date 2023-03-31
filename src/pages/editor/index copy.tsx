@@ -1,8 +1,11 @@
-import { FC, useEffect, useState } from "react";
+import * as dat from "lil-gui";
+import { Component } from "react";
 import {
   AmbientLight,
+  Box3,
   Clock,
   DirectionalLight,
+  EquirectangularReflectionMapping,
   GridHelper,
   MathUtils,
   Mesh,
@@ -12,6 +15,7 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -19,8 +23,9 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader";
 
-import { getObjectType } from "./utils/scene";
+import { buildHTML } from "./utils/scene";
 
 // 移动
 
@@ -31,22 +36,25 @@ let controls: OrbitControls, transformControls: TransformControls;
 let pmremGenerator: any;
 
 let ambientLight: AmbientLight, directionalLight: DirectionalLight;
+let nodeStates: any = new WeakMap();
+let options: any[] = [],
+  objCtrols: any[] = [];
 
 let cameraPersp: PerspectiveCamera, cameraOrtho: OrthographicCamera;
 
 const width = window.innerWidth - 350;
+// 模型数据
+let modelData: any;
 /**
  * 汇总
  */
-const Editor: FC<{}> = ({}) => {
-  const [modelData, setModelData] = useState<any>(); // 模型数据
+export default class Mushroom extends Component {
+  componentDidMount() {
+    this.init();
+    this.animation();
+  }
 
-  useEffect(() => {
-    init();
-    animation();
-  }, []);
-
-  const init = () => {
+  init = () => {
     clock = new Clock();
 
     // 生成场景
@@ -98,10 +106,10 @@ const Editor: FC<{}> = ({}) => {
     controls = new OrbitControls(camera, renderer.domElement);
     // controls.enableDamping = true;
     controls.update();
-    controls.addEventListener("change", renderFun);
+    controls.addEventListener("change", this.renderFun);
 
     transformControls = new TransformControls(camera, renderer.domElement);
-    transformControls.addEventListener("change", renderFun);
+    transformControls.addEventListener("change", this.renderFun);
     transformControls.addEventListener("dragging-changed", (event) => {
       controls.enabled = !event.value;
     });
@@ -115,16 +123,16 @@ const Editor: FC<{}> = ({}) => {
     // 不加动画时
     // renderer.render(scene, camera);
 
-    initModel();
-    // addXdrEnvironment();
+    this.initModel();
+    // this.addXdrEnvironment();
 
     // light
-    // initLight();
+    // this.initLight();
 
-    // initGui();
+    // this.initGui();
 
-    window.addEventListener("resize", () => onWindowResize());
-    window.addEventListener("keydown", () => keyFun(event));
+    window.addEventListener("resize", () => this.onWindowResize());
+    window.addEventListener("keydown", () => this.keyFun(event));
     window.addEventListener("keyup", function (event) {
       switch (event.keyCode) {
         case 16: // Shift
@@ -136,15 +144,15 @@ const Editor: FC<{}> = ({}) => {
     });
   };
 
-  const renderFun = () => {
+  renderFun() {
     renderer.render(scene, camera);
     // console.log(`output->change`, camera.position);
     console.log(`transformControls->camera`, camera.position);
     // console.log(`transformControls->controls`, controls);
     console.log(`transformControls->scene`, scene);
-  };
+  }
 
-  const keyFun = (event: any) => {
+  keyFun(event: any) {
     switch (event.keyCode) {
       case 81: // Q
         transformControls.setSpace(transformControls.space === "local" ? "world" : "local");
@@ -177,7 +185,7 @@ const Editor: FC<{}> = ({}) => {
 
         camera.lookAt(controls.target.x, controls.target.y, controls.target.z);
         console.log("camera target", controls.target);
-        onWindowResize();
+        this.onWindowResize();
         break;
 
       case 86: // V
@@ -190,7 +198,7 @@ const Editor: FC<{}> = ({}) => {
 
         cameraPersp.zoom = randomZoom * 5;
         cameraOrtho.zoom = randomZoom * 5;
-        onWindowResize();
+        this.onWindowResize();
         break;
 
       case 187:
@@ -223,10 +231,10 @@ const Editor: FC<{}> = ({}) => {
         transformControls.reset();
         break;
     }
-  };
+  }
 
   // 加载模型
-  const initModel = () => {
+  initModel() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath("/public");
     dracoLoader.preload();
@@ -241,12 +249,43 @@ const Editor: FC<{}> = ({}) => {
       (res) => {
         const model = res.scene;
 
+        // options.push(buildOption(model.camera, false));
+        // options.push(buildOption(scene, false));
+        (function addObjects(objects, pad) {
+          for (let i = 0, l = objects.length; i < l; i++) {
+            const object = objects[i];
+
+            // if (nodeStates.has(object) === false) {
+            //   nodeStates.set(object, false);
+            // }
+
+            const option = self.buildOption(object, true);
+            option.style.paddingLeft = pad * 18 + "px";
+            options.push(option);
+            objCtrols.push(object);
+
+            // if (nodeStates.get(object) === true) {
+            addObjects(object.children, pad + 1);
+            // }
+          }
+        })(model.children, 0);
+
+        // model.position.set(0, -0.012, 10.05); // z缩小
+        // model.rotation.set(0, 0, 0);
+        // model.scale.set(0.7, 0.7, 0.7);
+        modelData = model;
         scene.add(model);
 
         // 可视化变换控件对象
         transformControls.attach(model);
-        setModelData(model);
-        // setCamera(model);
+
+        // 遍历渲染模型场景值
+        const _cur = document.getElementsByClassName("dir_con");
+        options.forEach((item) => {
+          _cur[0].append(item);
+        });
+        console.log("model", model, options);
+        // this.setCamera(model);
       },
       (xhr) => {
         // loadProgress = Math.floor((xhr.loaded / xhr.total) * 100);
@@ -254,9 +293,98 @@ const Editor: FC<{}> = ({}) => {
         // console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
       }
     );
-  };
+  }
 
-  const onWindowResize = () => {
+  // 切换材质
+  checkMaterial() {
+    var material1 = new MeshBasicMaterial({ color: 0xff0000 }); // 红色
+    var material2 = new MeshBasicMaterial({ color: 0x00ff00 }); // 绿色
+    var material3 = new MeshBasicMaterial({ color: 0x0000ff }); // 蓝色
+    if (modelData instanceof Mesh) {
+      modelData.material = material1; // 将材质更改为新的红色材质
+    }
+  }
+
+  buildOption(object: any, draggable: boolean) {
+    const option = document.createElement("div");
+    option.draggable = draggable;
+    option.value = object.id;
+    option.innerHTML = buildHTML(object);
+
+    // opener
+
+    if (nodeStates.has(object)) {
+      const state = nodeStates.get(object);
+      const opener = document.createElement("span");
+      opener.classList.add("opener");
+      if (object.children.length > 0) {
+        opener.classList.add(state ? "open" : "closed");
+      }
+
+      // opener.addEventListener('click', function () {
+      //   nodeStates.set(object, nodeStates.get(object) === false); // toggle
+      // });
+    }
+    return option;
+  }
+
+  // 添加xdr
+  addXdrEnvironment() {
+    const textureLoader = new RGBELoader().setPath("/public");
+    textureLoader.load(
+      "hdr/vestibule_4k.hdr",
+      (texture) => {
+        scene.environment = texture;
+        scene.environment.mapping = EquirectangularReflectionMapping;
+      },
+      undefined
+    );
+  }
+
+  setCamera(model: any) {
+    const box = new Box3().setFromObject(model);
+    const size = box.getSize(new Vector3()).length();
+    const center = box.getCenter(new Vector3());
+
+    console.log("size", size, center);
+
+    // 重置控制器
+    // controls.reset();
+    // 固定缩放大小
+    // controls.minDistance = size / 1.2;
+    // controls.maxDistance = size * 20;
+
+    model.position.x += model.position.x - center.x;
+    model.position.y += model.position.y - center.y;
+    model.position.z += model.position.z - center.z;
+    model.scale.multiplyScalar(0.7);
+
+    camera.near = size / 10;
+    camera.far = size * 10;
+    camera.updateProjectionMatrix();
+
+    camera.position.copy(center);
+    camera.position.x += size / 2.0;
+    camera.position.y += size / 10.0;
+    camera.position.z += size / 2.0;
+
+    // const _position = {
+    //   x: 0.0002837040715011481,
+    //   y: 0.09157194668498254,
+    //   z: 0.08155604724883798,
+    // };
+    // camera.position.copy(new Vector3(_position.x, _position.y, _position.z));
+  }
+
+  initLight() {
+    ambientLight = new AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    directionalLight = new DirectionalLight(0x00fffc, 0.3);
+    scene.add(directionalLight);
+  }
+
+  onWindowResize() {
     // Update sizes
     window.innerWidth = width;
     window.innerHeight = window.innerHeight;
@@ -268,110 +396,88 @@ const Editor: FC<{}> = ({}) => {
     // Update renderer
     renderer.setSize(width, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  };
+  }
 
-  const animation = () => {
+  animation() {
     // Update controls
     controls.update();
     // transformControls.update();
     // Render
     renderer.render(scene, camera);
     // Call tick again on the next frame
-    requestAnimationFrame(animation.bind(this));
+    requestAnimationFrame(this.animation.bind(this));
+  }
+
+  /**
+   *
+   */
+  initGui = () => {
+    const gui = new dat.GUI();
+    gui.add(ambientLight, "intensity").min(0).max(1).step(0.001);
   };
 
-  const constinitLight = () => {
-    ambientLight = new AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-
-    directionalLight = new DirectionalLight(0x00fffc, 0.3);
-    scene.add(directionalLight);
-  };
-
-  // 切换材质
-  const checkMaterial = () => {
-    var material1 = new MeshBasicMaterial({ color: 0xff0000 }); // 红色
-    var material2 = new MeshBasicMaterial({ color: 0x00ff00 }); // 绿色
-    var material3 = new MeshBasicMaterial({ color: 0x0000ff }); // 蓝色
-    if (modelData instanceof Mesh) {
-      modelData.material = material1; // 将材质更改为新的红色材质
-    }
-  };
-
-  // 渲染模型结构
-  const treeItem = (item: any) => {
+  //
+  treeItem(item: any, isChildren?: boolean) {
+    debugger;
     let itemGroupItem = [];
     // 把所有节点放在一个数组里面
-    if (item?.length > 0) {
-      item.forEach((element: any) => {
-        if (!element?.uuid) return;
+
+    if (isChildren) {
+      item.children.forEach((element: any) => {
         itemGroupItem.push(
-          <ul
-            key={element.uuid}
-            onClick={(e) => {
-              e.stopPropagation();
-              objectSelected(element);
-            }}
-          >
+          <ul>
             {/* 第一个层级 */}
-            <li>
-              <span className={`type ${getObjectType(element)}`}></span>
-              {element.name}
-            </li>
+            <li key={element.uuid}>{element.name}</li>
 
             {/* 调用tree方法 */}
-            {treeItem(element.children)}
+            {this.treeItem(element.children, true)}
           </ul>
         );
       });
     } else {
-      if (!item?.uuid) return;
       itemGroupItem.push(
-        <ul
-          key={item.uuid}
-          onClick={(e) => {
-            e.stopPropagation();
-            objectSelected(item);
-          }}
-        >
+        <ul>
           {/* 第一个层级 */}
-          <li>
-            <span className={`type ${getObjectType(item)}`}></span>
-            {item.name}
-          </li>
+          <li key={item.uuid}>{item.name}</li>
 
           {/* 调用tree方法 */}
-          {treeItem(item.children)}
+          {this.treeItem(item.children)}
         </ul>
       );
     }
 
     return itemGroupItem;
-  };
+  }
 
-  const objectSelected = (item: any) => {
-    console.log("objectSelected", item);
-    transformControls.detach();
-    transformControls.attach(item);
-  };
-
-  console.log("objCtrols", modelData);
-  return (
-    <div className="canvas">
-      <div id="webgl" className="webgl"></div>
-      <div className="right">
-        <div className="dir">
-          <div className="scene">SCENE</div>
-          <div className="dir_con">{modelData && treeItem(modelData)}</div>
-        </div>
-        <div className="dir obj">
-          <div className="scene">OBJECT</div>
-          <div className="dir_con obj_con" onClick={checkMaterial}>
-            材质1
+  render() {
+    console.log("objCtrols", modelData);
+    return (
+      <div className="canvas">
+        <div id="webgl" className="webgl"></div>
+        <div className="right">
+          <div className="dir">
+            <div className="scene">SCENE</div>
+            <div className="dir_con"></div>
+          </div>
+          <div className="dir obj">
+            <div className="scene">OBJECT</div>
+            <div className="dir_con obj_con" onClick={this.checkMaterial}>
+              材质1
+              {modelData && this.treeItem(modelData)}
+              {/* {objCtrols[0].map((item, index) => {
+                //   let html
+                //   if(item.children) {
+                //     html += item.
+                //   }
+                //   const children  = <div>
+                //   {{item.name}}
+                // </div>
+                return <div key={index}>{item.name}</div>;
+              })} */}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
-export default Editor;
+    );
+  }
+}

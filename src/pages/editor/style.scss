@@ -10,7 +10,7 @@
 }
 .dir {
   width: 350px;
-  height: 300px;
+  height: 350px;
   color: #fff;
   overflow: hidden;
   // padding: 0 6px;
@@ -24,22 +24,30 @@
     text-align: center;
   }
   .dir_con {
-    height: 230px;
+    height: 280px;
     background: #f1f3f4;
     overflow: auto;
     color: #666;
     font-size: 12px;
-    padding: 15px 20px;
-    & > div {
-      margin: 5px;
+    padding: 15px 20px 15px 0;
+    ul {
+      padding-left: 14px;
+      margin-top: 0;
+      cursor: pointer;
+      li {
+        list-style: none;
+        white-space: nowrap;
+        padding: 4px;
+      }
     }
     .type {
       display: inline-block;
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       background: #ddd;
       text-align: center;
       border-radius: 50%;
+      margin-right: 5px;
     }
     .Object3D {
       background: #aaaaee;
@@ -76,9 +84,10 @@
 
 .obj {
   margin-top: 1px;
-  height: calc(100% - 300px);
+  height: calc(100% - 350px);
   .obj_con {
     height: calc(100% - 73px);
+    padding: 15px 20px;
   }
   .scene {
     // background: #f1f3f4;

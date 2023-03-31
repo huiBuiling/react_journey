@@ -24,6 +24,8 @@ export default {
     { path: "/mushroom", component: "@/pages/demos/mushroom" },
     { path: "/girl", component: "@/pages/demos/girl" },
     { path: "/editor", component: "@/pages/editor/index" },
+    { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
+
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
   ],
   // publicPath: "/public/",
