@@ -6,7 +6,6 @@
 /src/.umi-production
 /src/.umi-test
 /dist
-
 /public/model
 
 .vercel
