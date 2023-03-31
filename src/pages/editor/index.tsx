@@ -12,6 +12,7 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -59,30 +60,22 @@ const Editor: FC<{}> = ({}) => {
     cameraPersp = new PerspectiveCamera(50, aspect, 0.01, 30000);
     cameraOrtho = new OrthographicCamera(-600 * aspect, 600 * aspect, 600, -600, 0.01, 30000);
     camera = cameraPersp;
-
-    camera.position.set(1000, 500, 1000);
-    camera.lookAt(0, 200, 0);
+    camera.lookAt(0, 0, 0);
 
     const _position = {
-      // x: 56.09944382235683,
-      // y: 300.6991828482033,
-      // z: 750.6051948924159,
-      // x: 16.272155976913332,
-      // y: -232.1588800787314,
-      // z: 776.4101854707258,
-      x: 75.1465825274154,
-      y: 325.76209111591896,
-      z: 738.3815787846216,
+      x: 1.2395763962841813,
+      y: 758.5665228974968,
+      z: 1478.8458458838509,
     };
-    camera.position.set(_position.x, _position.y, _position.z);
+    camera.position.copy(new Vector3(_position.x, _position.y, _position.z));
 
     scene.add(camera);
-    const _scene_pos = {
-      x: 56.09944382235683,
-      y: 300.6991828482033,
-      z: 750.6051948924159,
-    };
-    scene.lookAt(_scene_pos.x, _scene_pos.y, _scene_pos.z);
+    // const _scene_pos = {
+    //   x: 56.09944382235683,
+    //   y: 300.6991828482033,
+    //   z: 750.6051948924159,
+    // };
+    // scene.lookAt(_scene_pos.x, _scene_pos.y, _scene_pos.z);
 
     // 渲染
     renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -102,7 +95,7 @@ const Editor: FC<{}> = ({}) => {
     controls.addEventListener("change", renderFun);
 
     transformControls = new TransformControls(camera, renderer.domElement);
-    transformControls.addEventListener("change", renderFun);
+
     transformControls.addEventListener("dragging-changed", (event) => {
       controls.enabled = !event.value;
     });
@@ -137,12 +130,9 @@ const Editor: FC<{}> = ({}) => {
     });
   };
 
-  const renderFun = () => {
+  const renderFun = (model?: any) => {
     renderer.render(scene, camera);
-    // console.log(`output->change`, camera.position);
-    console.log(`transformControls->camera`, camera.position);
-    // console.log(`transformControls->controls`, controls);
-    console.log(`transformControls->scene`, scene);
+    console.log(`output->change`, camera.position);
   };
 
   const keyFun = (event: any) => {
@@ -242,10 +232,15 @@ const Editor: FC<{}> = ({}) => {
       (res) => {
         const model = res.scene;
 
+        // 获取更新后的模型位置设置
+        const _position = {
+          x: 0.7455702388863585,
+          y: 264.63885385928137,
+          z: -4.936013200733115,
+        };
+        model.position.copy(new Vector3(_position.x, _position.y, _position.z));
         scene.add(model);
-
-        // 可视化变换控件对象
-        transformControls.attach(model);
+        setTransformControlsOBJ(model);
         setModelData(model);
         // setCamera(model);
       },
@@ -255,6 +250,19 @@ const Editor: FC<{}> = ({}) => {
         // console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
       }
     );
+  };
+
+  // 设置 transformControls 对象
+  const setTransformControlsOBJ = (_model: any) => {
+    transformControls.detach();
+
+    // 可视化变换控件对象
+    transformControls.attach(_model);
+    transformControls.addEventListener("change", () => {
+      renderer.render(scene, camera);
+      const position = _model.position.clone();
+      console.log("New position----:", position);
+    });
   };
 
   const onWindowResize = () => {
@@ -354,11 +362,12 @@ const Editor: FC<{}> = ({}) => {
   const objectSelected = (item: any) => {
     console.log("objectSelected", item);
     transformControls.detach();
-    transformControls.attach(item);
+    // transformControls.attach(item);
+    setTransformControlsOBJ(item);
     setUuid(item.uuid);
   };
 
-  console.log("objCtrols", modelData);
+  // console.log("objCtrols", modelData);
   return (
     <div className="canvas">
       <div id="webgl" className="webgl"></div>
