@@ -40,6 +40,7 @@ const width = window.innerWidth - 350;
  */
 const Editor: FC<{}> = ({}) => {
   const [modelData, setModelData] = useState<any>(); // 模型数据
+  const [uuid, setUuid] = useState<string>(); // 模型数据
 
   useEffect(() => {
     init();
@@ -314,7 +315,7 @@ const Editor: FC<{}> = ({}) => {
             }}
           >
             {/* 第一个层级 */}
-            <li>
+            <li className={element.uuid == uuid ? "active" : ""}>
               <span className={`type ${getObjectType(element)}`}></span>
               {element.name}
             </li>
@@ -335,7 +336,7 @@ const Editor: FC<{}> = ({}) => {
           }}
         >
           {/* 第一个层级 */}
-          <li>
+          <li className={item.uuid == uuid ? "active" : ""}>
             <span className={`type ${getObjectType(item)}`}></span>
             {item.name}
           </li>
@@ -349,10 +350,12 @@ const Editor: FC<{}> = ({}) => {
     return itemGroupItem;
   };
 
+  // transformControls 切换
   const objectSelected = (item: any) => {
     console.log("objectSelected", item);
     transformControls.detach();
     transformControls.attach(item);
+    setUuid(item.uuid);
   };
 
   console.log("objCtrols", modelData);

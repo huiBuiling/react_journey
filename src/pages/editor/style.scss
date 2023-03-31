@@ -1,4 +1,5 @@
 .webgl {
+  background: #eeeeee;
 }
 .right {
   position: fixed;
@@ -39,6 +40,9 @@
         white-space: nowrap;
         padding: 4px;
       }
+    }
+    .active {
+      background: #cdcdd6;
     }
     .type {
       display: inline-block;
