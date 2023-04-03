@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from "react";
 import {
   AmbientLight,
+  BoxHelper,
   Clock,
   DirectionalLight,
   GridHelper,
@@ -20,6 +21,7 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+// 框选模型
 
 import { getObjectType } from "./utils/scene";
 
@@ -34,6 +36,7 @@ let pmremGenerator: any;
 let ambientLight: AmbientLight, directionalLight: DirectionalLight;
 
 let cameraPersp: PerspectiveCamera, cameraOrtho: OrthographicCamera;
+let boxHelper: BoxHelper; // 框选 包围盒
 
 const width = window.innerWidth - 350;
 /**
@@ -229,8 +232,8 @@ const Editor: FC<{}> = ({}) => {
     let loadProgress = 0;
     gltfLoader.load(
       "/model/mushy_buddy.glb", // Horse panda2013 girl_cartoon_cyber_by_oscar_creativo
-      (res) => {
-        const model = res.scene;
+      (gltf) => {
+        const model = gltf.scene;
 
         // 获取更新后的模型位置设置
         const _position = {
@@ -239,6 +242,10 @@ const Editor: FC<{}> = ({}) => {
           z: -4.936013200733115,
         };
         model.position.copy(new Vector3(_position.x, _position.y, _position.z));
+
+        boxHelper = new BoxHelper(model); // 框选 包围盒
+        scene.add(boxHelper);
+
         scene.add(model);
         setTransformControlsOBJ(model);
         setModelData(model);
@@ -256,10 +263,14 @@ const Editor: FC<{}> = ({}) => {
   const setTransformControlsOBJ = (_model: any) => {
     transformControls.detach();
 
+    // 更新指定对象的线框盒子
+    boxHelper.setFromObject(_model);
+
     // 可视化变换控件对象
     transformControls.attach(_model);
     transformControls.addEventListener("change", () => {
       renderer.render(scene, camera);
+      boxHelper.update();
       const position = _model.position.clone();
       console.log("New position----:", position);
     });
@@ -361,7 +372,7 @@ const Editor: FC<{}> = ({}) => {
   // transformControls 切换
   const objectSelected = (item: any) => {
     console.log("objectSelected", item);
-    transformControls.detach();
+
     // transformControls.attach(item);
     setTransformControlsOBJ(item);
     setUuid(item.uuid);
