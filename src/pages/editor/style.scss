@@ -121,9 +121,10 @@
     min-height: 30px;
     line-height: 30px;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     font-size: 14px;
     white-space: nowrap;
+    border-bottom: 1px dashed #e2e1e1;
 
     .row_tit {
       width: 100px;
@@ -167,6 +168,12 @@
           width: 100px;
         }
       }
+    }
+  }
+
+  .geo {
+    .obj_row {
+      align-items: flex-start;
     }
   }
 

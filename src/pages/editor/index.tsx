@@ -22,6 +22,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 // 框选模型
 
+import { materialBlendingOptions, materialSideOptions } from "./utils/constant";
 import { keyCheckFun, setBoundingSphere, setPosition, setRotation } from "./utils/scene";
 
 // 组件
@@ -296,8 +297,6 @@ const Editor: FC<{}> = ({}) => {
     }
   };
 
-  const [tab, setTab] = useState("GEOMETRY"); // ["OBJECT", "GEOMETRY", "MATERIAL"]
-
   // useEffect(() => {
   //   console.log("modelObj", modelObj);
   // }, modelObj);
@@ -412,7 +411,7 @@ const Editor: FC<{}> = ({}) => {
     };
     console.log("_pos", _pos);
     return (
-      <div className="">
+      <div className="geo">
         <div className="obj_row">
           <span className="row_tit">Type</span>
           <div className="row_con">{modelObj?.geometry?.type}</div>
@@ -455,6 +454,7 @@ const Editor: FC<{}> = ({}) => {
   }, [uuid]);
 
   // console.log("modelObj", modelObj);
+  const [tab, setTab] = useState("MATERIAL"); // ["OBJECT", "GEOMETRY", "MATERIAL"]
 
   return (
     <div className="canvas">
@@ -482,41 +482,169 @@ const Editor: FC<{}> = ({}) => {
               <div>
                 <div className="obj_row">
                   <span className="row_tit">Type</span>
-                  <div className="row_con">{modelObj?.geometry?.type}</div>
-                </div>
-                <div className="obj_row">
-                  <span className="row_tit">UUID</span>
-                  <div className="row_con">{modelObj?.geometry?.uuid}</div>
-                </div>
-                <div className="obj_row">
-                  <span className="row_tit">Attributes</span>
-                  <div className="row_con flex_col col_con">
-                    <p>
-                      <span>index</span>
-                      {modelObj?.geometry?.index?.count}
-                    </p>
-                    <p>
-                      <span>normal</span>
-                      {modelObj?.geometry?.attributes?.normal?.count}({modelObj?.geometry?.attributes?.normal?.itemSize}
-                      )
-                    </p>
-                    <p>
-                      <span>position</span>
-                      {modelObj?.geometry?.attributes?.position?.count}(
-                      {modelObj?.geometry?.attributes?.position?.itemSize})
-                    </p>
-                    <p>
-                      <span>uv</span>
-                      {modelObj?.geometry?.attributes?.uv?.count}({modelObj?.geometry?.attributes?.uv?.itemSize})
-                    </p>
+                  <div className="row_con">
+                    {modelObj?.material?.type}
+                    <select>
+                      {Object.values(materialSideOptions).map((item: any, index: number) => {
+                        return (
+                          <option selected={modelObj?.material?.side == index || false} value={item}>
+                            {item}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                 </div>
                 <div className="obj_row">
-                  <span className="row_tit">Bounds</span>
-                  <div className="row_con flex_col col_con">
-                    <p>{modelObj?.geometry?.boundingSphere?.center.x}</p>
-                    <p>{modelObj?.geometry?.boundingSphere?.center.y}</p>
-                    <p>{modelObj?.geometry?.boundingSphere?.center.z}</p>
+                  <span className="row_tit">UUID</span>
+                  <div className="row_con">{modelObj?.material?.uuid}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Name</span>
+                  <div className="row_con">{modelObj?.material?.type}</div>
+                </div>
+                {/* <div className="obj_row">
+                  <span className="row_tit">Color</span>
+                  <div className="row_con">{modelObj?.material?.aoMapIntensity}</div>
+                </div> */}
+                <div className="obj_row">
+                  <span className="row_tit">Reflectivity</span>
+                  <div className="row_con">
+                    <span>{modelObj?.material?.reflectivity}</span>
+                  </div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Vertex Colors</span>
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.vertexColors || false}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Map</span>
+                  <div className="row_con">{modelObj?.material?.map?.isTexture}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Specular Map</span>
+                  <div className="row_con">{modelObj?.material?.specularMap}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Alpha Map</span>
+                  <div className="row_con">{modelObj?.material?.alphaMap}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Env Map</span>
+                  <div className="row_con">{modelObj?.material?.envMap}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Light Map</span>
+                  {/* lightMap */}
+                  <div className="row_con">{modelObj?.material?.lightMapIntensity}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">AO Map</span>
+                  {/* aoMap aoMapIntensity */}
+                  <div className="row_con">{modelObj?.material?.aoMapIntensity}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Side</span>
+                  {/* side: 2 */}
+                  <select>
+                    {Object.values(materialSideOptions).map((item: any, index: number) => {
+                      return (
+                        <option selected={modelObj?.material?.side == index || false} value={item}>
+                          {item}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Blending</span>
+                  <select>
+                    {Object.values(materialBlendingOptions).map((item: any, index: number) => {
+                      return (
+                        <option selected={modelObj?.material?.blending == index || false} value={item}>
+                          {item}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Opacity</span>
+                  <div className="row_con">{modelObj?.material?.opacity}</div>
+                </div>
+
+                <div className="obj_row">
+                  <span className="row_tit">Transparent</span>
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.transparent || false}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+                {/* <div className="obj_row">
+                  <span className="row_tit">Force Single Pass</span>
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.vertexColors || false}
+                      onChange={() => {}}
+                    />
+                    {modelObj?.material?.aoMapIntensity}
+                  </div>
+                </div> */}
+                <div className="obj_row">
+                  <span className="row_tit">Alpha Test</span>
+                  <div className="row_con">{modelObj?.material?.aoMapIntensity}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Depth Test</span>
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.depthTest || false}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Depth Write</span>
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.depthWrite || false}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Wireframe</span>
+
+                  <div className="row_con">
+                    <input
+                      className="checkbox"
+                      name="cast"
+                      type="checkbox"
+                      checked={modelObj?.material?.wireframe || false}
+                      onChange={() => {}}
+                    />
                   </div>
                 </div>
               </div>
