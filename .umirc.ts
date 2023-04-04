@@ -29,7 +29,9 @@ export default {
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
   ],
   // publicPath: "/public/",
-  publicPath: "/",
+  // publicPath: "/",
+  devtool: "eval", //生成map文件
+  // devtool: process.env.NODE_ENV === 'development' ? 'eval' : false
 };
 
 /**

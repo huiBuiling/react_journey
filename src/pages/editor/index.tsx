@@ -1,11 +1,10 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useCallback, useEffect, useState } from "react";
 import {
   AmbientLight,
   BoxHelper,
   Clock,
   DirectionalLight,
   GridHelper,
-  MathUtils,
   Mesh,
   MeshBasicMaterial,
   OrthographicCamera,
@@ -23,9 +22,10 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 // 框选模型
 
-import { getObjectType } from "./utils/scene";
+import { keyCheckFun, setBoundingSphere, setPosition, setRotation } from "./utils/scene";
 
-// 移动
+// 组件
+import SceneComp from "./scene";
 
 import "./style.scss";
 
@@ -44,7 +44,30 @@ const width = window.innerWidth - 350;
  */
 const Editor: FC<{}> = ({}) => {
   const [modelData, setModelData] = useState<any>(); // 模型数据
-  const [uuid, setUuid] = useState<string>(); // 模型数据
+  const [modelObj, setModelObj] = useState<any>(); // 模型数据
+  const [uuid, setUuid] = useState<string>(""); // 模型数据
+
+  useEffect(() => {
+    // 销毁
+    clearModel();
+    // return () => {};
+  }, []);
+
+  const clearModel = () => {
+    if (scene) {
+      // console.log('scene.children', scene.children)
+      // 建议使用
+      scene.children.pop();
+
+      const threeMain = document.getElementById("webgl");
+      if (threeMain !== null) {
+        threeMain.removeChild(threeMain.firstChild);
+      }
+
+      // 重要
+      // if (AnimationId !== null) cancelAnimationFrame(AnimationId)
+    }
+  };
 
   useEffect(() => {
     init();
@@ -138,91 +161,43 @@ const Editor: FC<{}> = ({}) => {
     console.log(`output->change`, camera.position);
   };
 
+  // 按键
   const keyFun = (event: any) => {
-    switch (event.keyCode) {
-      case 81: // Q
-        transformControls.setSpace(transformControls.space === "local" ? "world" : "local");
-        break;
-      case 16: // Shift
-        transformControls.setTranslationSnap(100);
-        transformControls.setRotationSnap(MathUtils.degToRad(15));
-        transformControls.setScaleSnap(0.25);
-        break;
-      case 87: // W
-        transformControls.setMode("translate");
-        break;
+    if (event.keyCode == 67) {
+      // C
+      const position = camera.position.clone();
 
-      case 69: // E
-        transformControls.setMode("rotate");
-        break;
+      camera = camera?.isPerspectiveCamera ? cameraOrtho : cameraPersp;
+      camera.position.copy(position);
 
-      case 82: // R
-        transformControls.setMode("scale");
-        break;
+      controls.object = camera;
+      transformControls.camera = camera;
 
-      case 67: // C
-        const position = camera.position.clone();
+      camera.lookAt(controls.target.x, controls.target.y, controls.target.z);
+      console.log("camera target", controls.target);
+      onWindowResize();
+    } else if (event.keyCode == 86) {
+      // V
 
-        camera = camera?.isPerspectiveCamera ? cameraOrtho : cameraPersp;
-        camera.position.copy(position);
+      const randomFoV = Math.random() + 0.1;
+      const randomZoom = Math.random() + 0.1;
 
-        controls.object = camera;
-        transformControls.camera = camera;
+      cameraPersp.fov = randomFoV * 160;
+      cameraOrtho.bottom = -randomFoV * 500;
+      cameraOrtho.top = randomFoV * 500;
 
-        camera.lookAt(controls.target.x, controls.target.y, controls.target.z);
-        console.log("camera target", controls.target);
-        onWindowResize();
-        break;
-
-      case 86: // V
-        const randomFoV = Math.random() + 0.1;
-        const randomZoom = Math.random() + 0.1;
-
-        cameraPersp.fov = randomFoV * 160;
-        cameraOrtho.bottom = -randomFoV * 500;
-        cameraOrtho.top = randomFoV * 500;
-
-        cameraPersp.zoom = randomZoom * 5;
-        cameraOrtho.zoom = randomZoom * 5;
-        onWindowResize();
-        break;
-
-      case 187:
-      case 107: // +, =, num+
-        transformControls.setSize(transformControls.size + 0.1);
-        break;
-
-      case 189:
-      case 109: // -, _, num-
-        transformControls.setSize(Math.max(transformControls.size - 0.1, 0.1));
-        break;
-
-      case 88: // X
-        transformControls.showX = !transformControls.showX;
-        break;
-
-      case 89: // Y
-        transformControls.showY = !transformControls.showY;
-        break;
-
-      case 90: // Z
-        transformControls.showZ = !transformControls.showZ;
-        break;
-
-      case 32: // Spacebar
-        transformControls.enabled = !transformControls.enabled;
-        break;
-
-      case 27: // Esc
-        transformControls.reset();
-        break;
+      cameraPersp.zoom = randomZoom * 5;
+      cameraOrtho.zoom = randomZoom * 5;
+      onWindowResize();
+    } else {
+      keyCheckFun(transformControls, event.keyCode);
     }
   };
 
   // 加载模型
   const initModel = () => {
     const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath("/public");
+    dracoLoader.setDecoderPath("/divublic");
     dracoLoader.preload();
     const gltfLoader = new GLTFLoader();
     // gltfLoader.setCrossOrigin("anonymous");
@@ -261,10 +236,14 @@ const Editor: FC<{}> = ({}) => {
 
   // 设置 transformControls 对象
   const setTransformControlsOBJ = (_model: any) => {
+    // setModelObj();
     transformControls.detach();
 
     // 更新指定对象的线框盒子
     boxHelper.setFromObject(_model);
+
+    setUuid(_model.uuid);
+    setModelObj(() => _model);
 
     // 可视化变换控件对象
     transformControls.attach(_model);
@@ -272,7 +251,9 @@ const Editor: FC<{}> = ({}) => {
       renderer.render(scene, camera);
       boxHelper.update();
       const position = _model.position.clone();
-      console.log("New position----:", position);
+      // setModelObj(() => _model);
+      // console.log("New position----:", position);
+      // console.log("modelObj", modelObj);
     });
   };
 
@@ -291,12 +272,9 @@ const Editor: FC<{}> = ({}) => {
   };
 
   const animation = () => {
-    // Update controls
     controls.update();
     // transformControls.update();
-    // Render
     renderer.render(scene, camera);
-    // Call tick again on the next frame
     requestAnimationFrame(animation.bind(this));
   };
 
@@ -318,79 +296,231 @@ const Editor: FC<{}> = ({}) => {
     }
   };
 
-  // 渲染模型结构
-  const treeItem = (item: any) => {
-    let itemGroupItem = [];
-    // 把所有节点放在一个数组里面
-    if (item?.length > 0) {
-      item.forEach((element: any) => {
-        if (!element?.uuid) return;
-        itemGroupItem.push(
-          <ul
-            key={element.uuid}
-            onClick={(e) => {
-              e.stopPropagation();
-              objectSelected(element);
-            }}
-          >
-            {/* 第一个层级 */}
-            <li className={element.uuid == uuid ? "active" : ""}>
-              <span className={`type ${getObjectType(element)}`}></span>
-              {element.name}
-            </li>
+  const [tab, setTab] = useState("GEOMETRY"); // ["OBJECT", "GEOMETRY", "MATERIAL"]
 
-            {/* 调用tree方法 */}
-            {treeItem(element.children)}
-          </ul>
-        );
-      });
-    } else {
-      if (!item?.uuid) return;
-      itemGroupItem.push(
-        <ul
-          key={item.uuid}
-          onClick={(e) => {
-            e.stopPropagation();
-            objectSelected(item);
-          }}
-        >
-          {/* 第一个层级 */}
-          <li className={item.uuid == uuid ? "active" : ""}>
-            <span className={`type ${getObjectType(item)}`}></span>
-            {item.name}
-          </li>
+  // useEffect(() => {
+  //   console.log("modelObj", modelObj);
+  // }, modelObj);
 
-          {/* 调用tree方法 */}
-          {treeItem(item.children)}
-        </ul>
-      );
-    }
+  // useCallback(() => {
+  //   setModelObj(modelObj);
+  // }, [uuid]);
 
-    return itemGroupItem;
-  };
+  // OBJECT
+  const renderObject = useCallback(() => {
+    console.log("renderObject", modelObj);
+    const _pos = modelObj && modelObj?.position ? setPosition(modelObj.position) : { x: 0, y: 0, z: 0 };
+    const _rotation = modelObj && modelObj?.rotation ? setRotation(modelObj.rotation) : { x: 0, y: 0, z: 0 };
+    const _scale = modelObj && modelObj?.scale ? setPosition(modelObj.scale) : { x: 0, y: 0, z: 0 };
 
-  // transformControls 切换
-  const objectSelected = (item: any) => {
-    console.log("objectSelected", item);
+    return (
+      <div className="">
+        <div className="obj_row">
+          <span className="row_tit">Type</span>
+          <div className="row_con">{modelObj?.type}</div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">UUID</span>
+          <div className="row_con">{modelObj?.uuid}</div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Name</span>
+          <div className="row_con"> {modelObj?.name}</div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Position</span>
+          <div className="row_con">
+            <span>{_pos.x}</span>
+            <span>{_pos.y}</span>
+            <span>{_pos.z}</span>
+          </div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Rotation</span>
+          <div className="row_con">
+            <span>{_rotation.x}°</span>
+            <span>{_rotation.y}°</span>
+            <span>{_rotation.z}°</span>
+          </div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Scale</span>
+          <div className="row_con">
+            <span>{_scale.x}</span>
+            <span>{_scale.y}</span>
+            <span>{_scale.z}</span>
+          </div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Shadow</span>
+          <div className="row_con">
+            <span className="flex">
+              <input
+                className="checkbox"
+                name="cast"
+                type="checkbox"
+                checked={modelObj?.castShadow || false}
+                onChange={() => {}}
+              />
+              cast
+            </span>
+            <span className="flex">
+              <input
+                className="checkbox"
+                name="receive"
+                type="checkbox"
+                checked={modelObj?.receiveShadow || false}
+                onChange={() => {}}
+              />
+              receive
+            </span>
+          </div>
+        </div>
+        <div className="obj_row">
+          {/* 物体是否显示 */}
+          <span className="row_tit">Visible</span>
+          <div className="row_con">
+            <input
+              className="checkbox"
+              name="visible"
+              type="checkbox"
+              checked={modelObj?.visible || false}
+              onChange={() => {}}
+            />
+          </div>
+        </div>
+        <div className="obj_row">
+          {/* 控制呈现对象的顺序 */}
+          <span className="row_tit">Render Order</span>
+          <div className="row_con">
+            <input className="number" autoComplete="off" value={modelObj?.renderOrder || 0} onChange={() => {}} />
+          </div>
+        </div>
 
-    // transformControls.attach(item);
-    setTransformControlsOBJ(item);
-    setUuid(item.uuid);
-  };
+        {/* <p><span>Frustum Cull</span></div> */}
+        {/* <p><span>Script</span></div> */}
+      </div>
+    );
+  }, [uuid, modelObj]);
 
-  // console.log("objCtrols", modelData);
+  // GEOMETRY
+  const renderGeometry = useCallback(() => {
+    const _pos = {
+      x: setBoundingSphere(modelObj?.geometry?.boundingSphere?.center.x),
+      y: setBoundingSphere(modelObj?.geometry?.boundingSphere?.center.y),
+      z: setBoundingSphere(modelObj?.geometry?.boundingSphere?.center.z),
+    };
+    console.log("_pos", _pos);
+    return (
+      <div className="">
+        <div className="obj_row">
+          <span className="row_tit">Type</span>
+          <div className="row_con">{modelObj?.geometry?.type}</div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">UUID</span>
+          <div className="row_con">{modelObj?.geometry?.uuid}</div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Attributes</span>
+          <div className="row_con flex_col col_con">
+            <p>
+              <span>index</span>
+              {modelObj?.geometry?.index?.count}
+            </p>
+            <p>
+              <span>normal</span>
+              {modelObj?.geometry?.attributes?.normal?.count}({modelObj?.geometry?.attributes?.normal?.itemSize})
+            </p>
+            <p>
+              <span>position</span>
+              {modelObj?.geometry?.attributes?.position?.count}({modelObj?.geometry?.attributes?.position?.itemSize})
+            </p>
+            <p>
+              <span>uv</span>
+              {modelObj?.geometry?.attributes?.uv?.count}({modelObj?.geometry?.attributes?.uv?.itemSize})
+            </p>
+          </div>
+        </div>
+        <div className="obj_row">
+          <span className="row_tit">Bounds</span>
+          <div className="row_con flex_col col_con">
+            <p>{_pos.x}</p>
+            <p>{_pos.y}</p>
+            <p>{_pos.z}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }, [uuid]);
+
+  // console.log("modelObj", modelObj);
+
   return (
     <div className="canvas">
       <div id="webgl" className="webgl"></div>
       <div className="right">
         <div className="dir">
           <div className="scene">SCENE</div>
-          <div className="dir_con">{modelData && treeItem(modelData)}</div>
+          <SceneComp uuid={uuid} modelData={modelData} transformControlsOBJ={setTransformControlsOBJ} />
         </div>
         <div className="dir obj">
-          <div className="scene">OBJECT</div>
-          <div className="dir_con obj_con" onClick={checkMaterial}>
-            材质1
+          <div className="scene_tab">
+            {["OBJECT", "GEOMETRY", "MATERIAL"].map((item) => (
+              <div key={item} className={tab == item ? "scene scene_act" : "scene"} onClick={() => setTab(item)}>
+                {item}
+              </div>
+            ))}
+          </div>
+
+          <div className="dir_con obj_con">
+            {modelObj && tab == "OBJECT" ? renderObject() : null}
+
+            {modelObj && modelObj?.geometry && tab == "GEOMETRY" ? renderGeometry() : null}
+
+            {modelObj && modelObj?.material && tab == "MATERIAL" ? (
+              <div>
+                <div className="obj_row">
+                  <span className="row_tit">Type</span>
+                  <div className="row_con">{modelObj?.geometry?.type}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">UUID</span>
+                  <div className="row_con">{modelObj?.geometry?.uuid}</div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Attributes</span>
+                  <div className="row_con flex_col col_con">
+                    <p>
+                      <span>index</span>
+                      {modelObj?.geometry?.index?.count}
+                    </p>
+                    <p>
+                      <span>normal</span>
+                      {modelObj?.geometry?.attributes?.normal?.count}({modelObj?.geometry?.attributes?.normal?.itemSize}
+                      )
+                    </p>
+                    <p>
+                      <span>position</span>
+                      {modelObj?.geometry?.attributes?.position?.count}(
+                      {modelObj?.geometry?.attributes?.position?.itemSize})
+                    </p>
+                    <p>
+                      <span>uv</span>
+                      {modelObj?.geometry?.attributes?.uv?.count}({modelObj?.geometry?.attributes?.uv?.itemSize})
+                    </p>
+                  </div>
+                </div>
+                <div className="obj_row">
+                  <span className="row_tit">Bounds</span>
+                  <div className="row_con flex_col col_con">
+                    <p>{modelObj?.geometry?.boundingSphere?.center.x}</p>
+                    <p>{modelObj?.geometry?.boundingSphere?.center.y}</p>
+                    <p>{modelObj?.geometry?.boundingSphere?.center.z}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
