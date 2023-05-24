@@ -5,6 +5,8 @@
     "build": "umi build",
     "deploy": "vercel --prod",
     "dev": "set PORT=8100 && umi dev",
+    "dev2": "set SOCKET_SERVER=http://localhost:8000/&&umi dev",
+    "dev3": "set PORT=8100 && set SOCKET_SERVER=8100 && umi dev",
     "postinstall": "umi setup",
     "setup": "umi setup",
     "start": "npm run dev"

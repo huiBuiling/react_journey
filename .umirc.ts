@@ -27,6 +27,9 @@ export default {
     { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
 
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
+
+    // mzww
+    // { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",

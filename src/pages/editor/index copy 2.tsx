@@ -1,7 +1,6 @@
 import { FC, useCallback, useEffect, useState } from "react";
 import {
   AmbientLight,
-  Box3,
   BoxHelper,
   Clock,
   DirectionalLight,
@@ -13,6 +12,7 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -20,15 +20,12 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-// import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
-
 // 框选模型
 
 import { materialBlendingOptions, materialSideOptions } from "./utils/constant";
 import { keyCheckFun, setBoundingSphere, setPosition, setRotation } from "./utils/scene";
 
 // 组件
-import SceneComp from "./scene";
 
 import "./style.scss";
 
@@ -83,17 +80,16 @@ const Editor: FC<{}> = ({}) => {
     // 生成场景
     scene = new Scene();
     scene.name = "Scene";
-    const gridHelper = new GridHelper(30, 20, 0x3c3c3c, 0x3c3c3c);
-    gridHelper.position.y = -10;
-    gridHelper.position.x = 0;
-    gridHelper.position.z = -50;
-    scene.add(gridHelper);
+    scene.add(new GridHelper(400, 10, 0x888888, 0x444444));
+    // const gridHelper = new GridHelper(400, 40, 0x000000, 0xffffff);
+    // gridHelper.position.y = -10;
+    // gridHelper.position.x = -10;
+    // scene.add(gridHelper);
 
-    const gridHelper2 = new GridHelper(-30, 4, 0xa8a8a8, 0xcdcdd6);
-    gridHelper2.position.y = -10;
-    gridHelper2.position.x = 0;
-    gridHelper2.position.z = -50;
-    scene.add(gridHelper2);
+    // const gridHelper2 = new GridHelper(400, 8, 0x0000ff, 0x0000ff);
+    // gridHelper2.position.y = -10;
+    // gridHelper2.position.x = -10;
+    // scene.add(gridHelper2);
 
     // scene.background = scene.background;
     // scene.environment = scene.environment;
@@ -109,9 +105,9 @@ const Editor: FC<{}> = ({}) => {
     camera.lookAt(0, 0, 0);
 
     // const _position = {
-    //   x: 5.097542217847917,
-    //   y: 157.11213940926373,
-    //   z: 385.247952734581,
+    //   x: 1.2395763962841813,
+    //   y: 758.5665228974968,
+    //   z: 1478.8458458838509,
     // };
     // camera.position.copy(new Vector3(_position.x, _position.y, _position.z));
 
@@ -225,20 +221,12 @@ const Editor: FC<{}> = ({}) => {
         const model = gltf.scene;
 
         // 获取更新后的模型位置设置
-        // const _position = {
-        //   x: 0.7455702388863585,
-        //   y: 264.63885385928137,
-        //   z: -4.936013200733115,
-        // };
-        // model.position.copy(new Vector3(_position.x, _position.y, _position.z));
-
-        const box = new Box3().setFromObject(model);
-        const height = box.max.y;
-        const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-        const pos = model.position;
-        console.log(pos.x, pos.y * 20, dist * 1.5);
-        camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
-        camera.lookAt(pos);
+        const _position = {
+          x: 0.7455702388863585,
+          y: 264.63885385928137,
+          z: -4.936013200733115,
+        };
+        model.position.copy(new Vector3(_position.x, _position.y, _position.z));
 
         scene.add(model);
         // setCamera(model);
@@ -508,7 +496,7 @@ const Editor: FC<{}> = ({}) => {
       <div className="right">
         <div className="dir">
           <div className="scene">SCENE</div>
-          <SceneComp uuid={uuid} modelData={modelData} transformControlsOBJ={setTransformControlsOBJ} />
+          {/* <SceneComp uuid={uuid} modelData={modelData} transformControlsOBJ={setTransformControlsOBJ} /> */}
         </div>
         <div className="dir obj">
           <div className="scene_tab">
