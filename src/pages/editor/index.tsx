@@ -13,10 +13,12 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+// import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
@@ -34,6 +36,7 @@ import "./style.scss";
 
 let scene: Scene, camera: any, renderer: WebGLRenderer, clock: Clock;
 let controls: OrbitControls, transformControls: TransformControls;
+//  trackballControls:TrackballControls
 let pmremGenerator: any;
 
 let ambientLight: AmbientLight, directionalLight: DirectionalLight;
@@ -83,16 +86,16 @@ const Editor: FC<{}> = ({}) => {
     // 生成场景
     scene = new Scene();
     scene.name = "Scene";
-    const gridHelper = new GridHelper(30, 20, 0x3c3c3c, 0x3c3c3c);
+    const gridHelper = new GridHelper(30, 20, 0xffffff, 0xffffff);
     gridHelper.position.y = -10;
     gridHelper.position.x = 0;
-    gridHelper.position.z = -50;
+    gridHelper.position.z = -20;
     scene.add(gridHelper);
 
-    const gridHelper2 = new GridHelper(-30, 4, 0xa8a8a8, 0xcdcdd6);
+    const gridHelper2 = new GridHelper(-30, 5, 0x9a4e1c, 0x9a4e1c);
     gridHelper2.position.y = -10;
     gridHelper2.position.x = 0;
-    gridHelper2.position.z = -50;
+    gridHelper2.position.z = -20;
     scene.add(gridHelper2);
 
     // scene.background = scene.background;
@@ -108,20 +111,15 @@ const Editor: FC<{}> = ({}) => {
     camera = cameraPersp;
     camera.lookAt(0, 0, 0);
 
-    // const _position = {
-    //   x: 5.097542217847917,
-    //   y: 157.11213940926373,
-    //   z: 385.247952734581,
-    // };
-    // camera.position.copy(new Vector3(_position.x, _position.y, _position.z));
-
+    // const box = new Box3().setFromObject(scene);
+    // const center = box.getCenter(new Vector3());
+    // const newPosition = new Vector3();
+    // newPosition.x = scene.position.x + (scene.position.x - center.x);
+    // newPosition.y = scene.position.y + (scene.position.y + center.y);
+    // newPosition.z = scene.position.z + (scene.position.z - center.z);
+    // console.log("newPosition", newPosition);
+    // camera.position.set(newPosition.x, newPosition.y, newPosition.z);
     scene.add(camera);
-    // const _scene_pos = {
-    //   x: 56.09944382235683,
-    //   y: 300.6991828482033,
-    //   z: 750.6051948924159,
-    // };
-    // scene.lookAt(_scene_pos.x, _scene_pos.y, _scene_pos.z);
 
     // 渲染
     renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -155,21 +153,19 @@ const Editor: FC<{}> = ({}) => {
     // initListenEvent();
   };
 
-  const renderFun = (model?: any) => {
-    renderer.render(scene, camera);
-    console.log(`output->change`, camera.position);
-  };
-
   // 初始化各类型控制器
   const initControls = () => {
     // Controls
     controls = new OrbitControls(camera, renderer.domElement);
     // controls.enableDamping = true;
     controls.update();
-    controls.addEventListener("change", renderFun);
+    controls.addEventListener("change", () => {
+      renderer.render(scene, camera);
+      // console.log(`output->change`, camera.position);
+    });
 
+    //
     transformControls = new TransformControls(camera, renderer.domElement);
-
     transformControls.addEventListener("dragging-changed", (event) => {
       controls.enabled = !event.value;
     });
@@ -185,26 +181,23 @@ const Editor: FC<{}> = ({}) => {
   };
   // 设置 transformControls 对象
   const setTransformControlsOBJ = (_model: any) => {
-    console.log("setTransformControlsOBJ");
-    // setModelObj();
-    // transformControls.detach();
+    // 销毁
+    transformControls.detach();
 
     // 更新指定对象的线框盒子
-    // boxHelper.setFromObject(_model);
-
+    boxHelper.setFromObject(_model);
     setUuid(_model.uuid);
     setModelObj(() => _model);
 
     // 可视化变换控件对象
     transformControls.attach(_model);
-    transformControls.addEventListener("change", () => {
-      console.log("transformControls  change");
+    transformControls.addEventListener("change", (event) => {
+      // const model_pos = _model.position.clone();
+      // const camera_pos = camera.position.clone();
+      // console.log("model_pos----:", model_pos, ", camera_pos----:", camera_pos);
+      // setModelObj(() => _model);
       renderer.render(scene, camera);
       boxHelper.update();
-      const position = _model.position.clone();
-      // setModelObj(() => _model);
-      // console.log("New position----:", position);
-      // console.log("modelObj", modelObj);
     });
   };
 
@@ -220,7 +213,7 @@ const Editor: FC<{}> = ({}) => {
     const self = this;
     let loadProgress = 0;
     gltfLoader.load(
-      "/model/mushy_buddy.glb", // Horse panda2013 girl_cartoon_cyber_by_oscar_creativo
+      "/model/russell.glb", // mushy_buddy girl russell gem_ring2
       (gltf) => {
         const model = gltf.scene;
 
@@ -232,15 +225,19 @@ const Editor: FC<{}> = ({}) => {
         // };
         // model.position.copy(new Vector3(_position.x, _position.y, _position.z));
 
-        const box = new Box3().setFromObject(model);
+        const box = new Box3().setFromObject(model); // 获取模型的包围盒
+        const size = box.getSize(new Vector3());
+        const pos = box.getCenter(new Vector3());
+        console.log("box", size, pos);
+        model.position.y = -pos.y;
         const height = box.max.y;
         const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-        const pos = model.position;
-        console.log(pos.x, pos.y * 20, dist * 1.5);
+        // console.log("1", pos.x, pos.y, dist * 1.5);
         camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
-        camera.lookAt(pos);
+        // camera.lookAt(pos);
 
         scene.add(model);
+        // ("selected");
         // setCamera(model);
         selectObjItem(model);
 
@@ -524,7 +521,7 @@ const Editor: FC<{}> = ({}) => {
 
             {modelObj && modelObj?.geometry && tab == "GEOMETRY" ? renderGeometry() : null}
 
-            {modelObj && modelObj?.material && tab == "MATERIAL" ? (
+            {false && modelObj && modelObj?.material && tab == "MATERIAL" ? (
               <div>
                 <div className="obj_row">
                   <span className="row_tit">Type</span>

@@ -2,7 +2,6 @@ import * as dat from "lil-gui";
 import { Component } from "react";
 import {
   AmbientLight,
-  Box3,
   Clock,
   DirectionalLight,
   EquirectangularReflectionMapping,
@@ -15,7 +14,6 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
-  Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -341,6 +339,7 @@ export default class Mushroom extends Component {
     );
   }
 
+  /*
   setCamera(model: any) {
     const box = new Box3().setFromObject(model);
     const size = box.getSize(new Vector3()).length();
@@ -375,6 +374,7 @@ export default class Mushroom extends Component {
     // };
     // camera.position.copy(new Vector3(_position.x, _position.y, _position.z));
   }
+  */
 
   initLight() {
     ambientLight = new AmbientLight(0xffffff, 0.5);

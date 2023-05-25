@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useCallback } from "react";
 import { escapeHTML, getMaterialName, getObjectType } from "./utils/scene";
 
 // 移动
@@ -42,67 +42,72 @@ const Editor: FC<{ modelData: any; uuid: string; transformControlsOBJ: (_data: a
   // const init = () => {};
 
   // 渲染模型结构
-  const treeItem = (item: any) => {
-    let itemGroupItem = [];
-    // 把所有节点放在一个数组里面
-    if (item?.length > 0) {
-      item.forEach((element: any) => {
-        if (!element?.uuid) return;
+  const treeItem = useCallback(
+    (item: any) => {
+      let itemGroupItem = [];
+      // 把所有节点放在一个数组里面
+      if (item?.length > 0) {
+        item.forEach((element: any) => {
+          if (!element?.uuid) return;
+          console.log("element", element.uuid);
+          itemGroupItem.push(
+            <ul
+              key={element.uuid}
+              onClick={(e) => {
+                e.stopPropagation();
+                objectSelected(element);
+              }}
+            >
+              {/* 第一个层级 */}
+              <li className={element.uuid == uuid ? "active" : ""}>
+                <span className={`type ${getObjectType(element)}`}></span>
+                {element.name}
+                {element?.isMesh ? (
+                  <span className="type_u">
+                    <span className="type Geometry"></span> {escapeHTML(element.geometry.name)}
+                    <span className="type Material"></span> {escapeHTML(getMaterialName(element.material))}
+                  </span>
+                ) : null}
+              </li>
+
+              {/* 调用tree方法 */}
+              {treeItem(element.children)}
+            </ul>
+          );
+        });
+      } else {
+        if (!item?.uuid) return;
+        console.log("item", item.uuid);
         itemGroupItem.push(
           <ul
-            key={element.uuid}
+            key={item.uuid}
             onClick={(e) => {
               e.stopPropagation();
-              objectSelected(element);
+              objectSelected(item);
             }}
           >
             {/* 第一个层级 */}
-            <li className={element.uuid == uuid ? "active" : ""}>
-              <span className={`type ${getObjectType(element)}`}></span>
-              {element.name}
-              {element?.isMesh ? (
+            <li className={item.uuid == uuid ? "active" : ""}>
+              <span className={`type ${getObjectType(item)}`}></span>
+              {item.name}
+              {item?.isMesh ? (
                 <span className="type_u">
-                  <span className="type Geometry"></span> {escapeHTML(element.geometry.name)}
-                  <span className="type Material"></span> {escapeHTML(getMaterialName(element.material))}
+                  <span className="type Geometry"></span> ${escapeHTML(item.geometry.name)}
+                  <span className="type Material"></span> ${escapeHTML(getMaterialName(item.material))}
                 </span>
               ) : null}
             </li>
 
             {/* 调用tree方法 */}
-            {treeItem(element.children)}
+            {treeItem(item.children)}
           </ul>
         );
-      });
-    } else {
-      if (!item?.uuid) return;
-      itemGroupItem.push(
-        <ul
-          key={item.uuid}
-          onClick={(e) => {
-            e.stopPropagation();
-            objectSelected(item);
-          }}
-        >
-          {/* 第一个层级 */}
-          <li className={item.uuid == uuid ? "active" : ""}>
-            <span className={`type ${getObjectType(item)}`}></span>
-            {item.name}
-            {item?.isMesh ? (
-              <span className="type_u">
-                <span className="type Geometry"></span> ${escapeHTML(item.geometry.name)}
-                <span className="type Material"></span> ${escapeHTML(getMaterialName(item.material))}
-              </span>
-            ) : null}
-          </li>
+      }
 
-          {/* 调用tree方法 */}
-          {treeItem(item.children)}
-        </ul>
-      );
-    }
-
-    return itemGroupItem;
-  };
+      return itemGroupItem;
+    },
+    [uuid]
+  );
 
   // transformControls 切换
   const objectSelected = (item: any) => {

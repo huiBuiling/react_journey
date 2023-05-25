@@ -29,7 +29,10 @@ export default {
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
 
     // mzww
-    // { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
+    { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
+
+    // website
+    { path: "/lockControl", component: "@/pages/website/LockControl" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",
