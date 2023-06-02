@@ -192,9 +192,9 @@ const Editor: FC<{}> = ({}) => {
     // 可视化变换控件对象
     transformControls.attach(_model);
     transformControls.addEventListener("change", (event) => {
-      // const model_pos = _model.position.clone();
-      // const camera_pos = camera.position.clone();
-      // console.log("model_pos----:", model_pos, ", camera_pos----:", camera_pos);
+      const model_pos = _model.position.clone();
+      const camera_pos = camera.position.clone();
+      console.log("model_pos----:", model_pos, ", camera_pos----:", camera_pos);
       // setModelObj(() => _model);
       renderer.render(scene, camera);
       boxHelper.update();
@@ -232,7 +232,7 @@ const Editor: FC<{}> = ({}) => {
         model.position.y = -pos.y;
         const height = box.max.y;
         const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-        // console.log("1", pos.x, pos.y, dist * 1.5);
+        console.log("1", model.position, "camera", pos.x, pos.y, dist * 1.5);
         camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
         // camera.lookAt(pos);
 

@@ -33,6 +33,9 @@ export default {
 
     // website
     { path: "/lockControl", component: "@/pages/website/LockControl" },
+
+    // hall
+    { path: "/hall", component: "@/pages/demos/showroom" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",

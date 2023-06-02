@@ -25,7 +25,12 @@ let sphere: Mesh, cube: Mesh, plane: Mesh, torus: Mesh;
 let ambientLight: AmbientLight, directionalLight: DirectionalLight;
 
 /**
- * 鬼屋
+ * 鬼屋:
+ * - 墙壁、屋顶、门和一些灌木
+ * - 花园里建造坟墓
+ * - 四处漂浮并穿过墙壁和地板的多色灯的可见幽灵
+ * file:///E:/hui_code/2023/three_journey/Threejs-Journey/17.html
+ * https://blog.csdn.net/weixin_43990650/article/details/121728148
  */
 export default class HauntedHouse extends Component {
   componentDidMount() {

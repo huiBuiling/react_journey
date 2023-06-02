@@ -49,7 +49,7 @@ const Editor: FC<{ modelData: any; uuid: string; transformControlsOBJ: (_data: a
       if (item?.length > 0) {
         item.forEach((element: any) => {
           if (!element?.uuid) return;
-          console.log("element", element.uuid);
+          // console.log("element", element.uuid);
           itemGroupItem.push(
             <ul
               key={element.uuid}
@@ -77,7 +77,7 @@ const Editor: FC<{ modelData: any; uuid: string; transformControlsOBJ: (_data: a
         });
       } else {
         if (!item?.uuid) return;
-        console.log("item", item.uuid);
+        // console.log("item", item.uuid);
         itemGroupItem.push(
           <ul
             key={item.uuid}
@@ -111,7 +111,7 @@ const Editor: FC<{ modelData: any; uuid: string; transformControlsOBJ: (_data: a
 
   // transformControls 切换
   const objectSelected = (item: any) => {
-    console.log("objectSelected", item);
+    // console.log("objectSelected", item);
 
     transformControlsOBJ(item);
     // setUuid(item.uuid);
