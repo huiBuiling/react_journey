@@ -1,4 +1,6 @@
-export default {
+import { defineConfig } from "umi";
+
+export default defineConfig({
   npmClient: "yarn",
   routes: [
     { path: "/", component: "@/pages/index" },
@@ -36,13 +38,44 @@ export default {
 
     // hall
     { path: "/hall", component: "@/pages/demos/showroom" },
+
+    // shader
+    { path: "/raw", component: "@/pages/shaders/raw" },
+    { path: "/demo", component: "@/pages/shaders/demo" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",
   devtool: "eval", //生成map文件
   // devtool: process.env.NODE_ENV === 'development' ? 'eval' : false
-};
+  chainWebpack(config: any) {
+    // Set alias
+    // config.resolve.alias.set('a', 'path/to/a');
+
+    const GLSL_REG = /\.(glsl|vs|fs)$/;
+    config.module.rule("asset").exclude.add(GLSL_REG).end();
+    config.module
+      .rule("glslify")
+      .test(GLSL_REG)
+      //添加include选项，其值是数组
+      // .include.add("/src/")
+      // .add("/assets/")
+      // .add("/shaders/")
+      // .end()
+      .exclude.add(/node_modules/)
+      .end()
+      .use("raw-loader")
+      .loader("raw-loader")
+      .end();
+    // .use("glslify-loader")
+    // .loader("glslify-loader")
+    // .end();
+
+    // .use("webpack-glsl-loader") // 指定一个名叫 eslint 的 loader 配置
+    // .loader("webpack-glsl-loader")
+    // .end();
+  },
+});
 
 /**
- *
+ * https://umijs.org/docs/api/config
  */
