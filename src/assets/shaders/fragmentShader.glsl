@@ -26,7 +26,7 @@ void main()
 
   // textureColor.rgb *= vElevation * 1.0 + 0.5; // 阴影
   // textureColor.rgb *= vElevation * 0.1 + 6.2
-  textureColor.rgb *= vElevation * 1.1 + 0.8; // 阴影
+  textureColor.rgb *= vElevation * 0.8 + 0.85; // 阴影
 
   gl_FragColor = textureColor;
 }
