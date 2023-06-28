@@ -29,6 +29,8 @@ export default defineConfig({
     { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
 
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
+    { path: "/webview", component: "@/pages/lights/webview" },
+    { path: "/webview2", component: "@/pages/lights/webview2" },
 
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
@@ -42,10 +44,11 @@ export default defineConfig({
     // shader
     { path: "/raw", component: "@/pages/shaders/raw" },
     { path: "/demo", component: "@/pages/shaders/demo" },
+    { path: "/IronBall", component: "@/pages/shaders/IronBall" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",
-  devtool: "eval", //生成map文件
+  // devtool: "eval", //生成map文件
   // devtool: process.env.NODE_ENV === 'development' ? 'eval' : false
   chainWebpack(config: any) {
     // Set alias
