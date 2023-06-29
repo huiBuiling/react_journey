@@ -37,8 +37,11 @@ let pointLight: PointLight,
 const minLightX = -144,
   maxLightX = 171,
   minLightY = 33,
-  maxLightY = 348,
-  LightZ = 171;
+  maxLightY = 348;
+const minCameraX = -100,
+  maxCameraX = 100,
+  minCameraY = 175,
+  maxCameraY = 200;
 
 /**
  * 光和影
@@ -152,10 +155,10 @@ export default class LightAndShadow extends Component<IProps, IState> {
     scene.add(directionLight);
 
     // 点光源 100 -> 太小值没效果
-    pointLight = new PointLight(0x88ffee, 2.7, 300, 3);
+    pointLight = new PointLight(0x7b4ee0, 2.7, 200, 3);
     pointLight.position.set(-145, 125, 170); // x:-145, z:72
     scene.add(pointLight);
-    const pointLightHelper = new PointLightHelper(pointLight, 15);
+    const pointLightHelper = new PointLightHelper(pointLight, 1);
     scene.add(pointLightHelper);
   };
 
@@ -244,7 +247,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
         });
       // 第一个页面相机添加入场动画 z:760.3392831164882 | 466
       const tween2 = new TWEEN.Tween(camera.position.set(10, 0, 0))
-        .to({ x: 5.397631049156189, y: 204.96800056555696, z: 400 }, 3500)
+        .to({ x: 5.397631049156189, y: 175, z: 400 }, 3500)
         .easing(TWEEN.Easing.Quadratic.InOut)
         .start()
         .onComplete(function () {
@@ -290,8 +293,8 @@ export default class LightAndShadow extends Component<IProps, IState> {
     pointLight.position.y = targetY2;
     pointLight.position.x = targetX2;
 
-    const targetX = this.normalize(cursor.x, -1, 1, -100, 100);
-    const targetY = this.normalize(cursor.y, -1, 1, 100, 175); // 初始动画位置 -》100
+    const targetX = this.normalize(cursor.x, -1, 1, minCameraX, maxCameraX);
+    const targetY = this.normalize(cursor.y, -1, 1, minCameraY, maxCameraY); // 初始动画位置 175 和 loading 设置的保持差异不大范围
     camera.position.y = targetY;
     camera.position.x = targetX / 4;
   }
