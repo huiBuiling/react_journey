@@ -58,7 +58,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
     super(props);
 
     this.state = {
-      isLoading: false,
+      isLoading: true,
     };
   }
 
@@ -330,7 +330,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
         </div>
         {/* style={{ visibility: "hidden" }} */}
         <div className="content">
-          <nav className={`header ${isLoading ? "" : "ended"}`}>
+          <nav className={`header ${isLoading ? "" : "act"}`}>
             <a href="" className="active a">
               <span>首页</span>
             </a>
