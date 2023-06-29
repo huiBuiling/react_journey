@@ -34,6 +34,11 @@ let pointLight: PointLight,
   cursor = { x: 0, y: 0 },
   _cursor: any,
   previousTime = 0;
+const minLightX = -144,
+  maxLightX = 171,
+  minLightY = 33,
+  maxLightY = 348,
+  LightZ = 171;
 
 /**
  * 光和影
@@ -112,9 +117,14 @@ export default class LightAndShadow extends Component<IProps, IState> {
     // gui.add(directionLight.position, "y").min(-200).max(800).step(0.1).name("directionLight_y");
     // gui.add(directionLight.position, "z").min(-200).max(800).step(0.1).name("directionLight_z");
 
-    gui.add(pointLight.position, "x").min(-800).max(800).step(0.1).name("pointLight_x");
-    gui.add(pointLight.position, "y").min(-800).max(800).step(0.1).name("pointLight_y");
-    gui.add(pointLight.position, "z").min(-800).max(800).step(0.1).name("pointLight_z");
+    gui.add(pointLight.position, "x").min(-800).max(800).step(1).name("pointLight_x");
+    gui.add(pointLight.position, "y").min(-800).max(800).step(1).name("pointLight_y");
+    gui.add(pointLight.position, "z").min(-800).max(800).step(1).name("pointLight_z");
+
+    gui.add(camera.position, "x").min(-800).max(800).step(1).name("camera_x");
+    gui.add(camera.position, "y").min(-800).max(800).step(1).name("camera_y");
+    gui.add(camera.position, "z").min(-800).max(800).step(1).name("camera_z");
+    console.log("first", camera.position);
   }
 
   // 鼠标移动时添加虚拟光标
@@ -141,9 +151,9 @@ export default class LightAndShadow extends Component<IProps, IState> {
     directionLight.position.set(-100, 0, -100);
     scene.add(directionLight);
 
-    // 点光源 400 -> 太小值没效果
-    pointLight = new PointLight(0x88ffee, 2.7, 400, 3);
-    pointLight.position.set(106, 210, 72); // z:35.3
+    // 点光源 100 -> 太小值没效果
+    pointLight = new PointLight(0x88ffee, 2.7, 200, 3);
+    pointLight.position.set(-6, 125, 100); // x:-145, z:72
     scene.add(pointLight);
     const pointLightHelper = new PointLightHelper(pointLight, 15);
     scene.add(pointLightHelper);
@@ -203,16 +213,12 @@ export default class LightAndShadow extends Component<IProps, IState> {
 
     // 此函数在加载开始时被调用
     loadingManager.onStart = function (url: any, itemsLoaded: any, itemsTotal: any) {
-      console.log("Started loading file: " + url + ".\nLoaded " + itemsLoaded + " of " + itemsTotal + " files.");
-    };
-
-    loadingManager.onLoad = function () {
-      console.log("Loading complete!");
+      // console.log("Started loading file: " + url + ".\nLoaded " + itemsLoaded + " of " + itemsTotal + " files.");
     };
 
     // 此方法加载每一个项，加载完成时进行调用
     loadingManager.onProgress = function (url: any, itemsLoaded: any, itemsTotal: any) {
-      console.log("Loading file: " + url + ".\nLoaded " + itemsLoaded + " of " + itemsTotal + " files.");
+      // console.log("Loading file: " + url + ".\nLoaded " + itemsLoaded + " of " + itemsTotal + " files.");
     };
     // 此方法将在任意项加载错误时，进行调用
     loadingManager.onError = function (url: any) {
@@ -221,9 +227,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
 
     // 所有的项目加载完成后将调用此函数。默认情况下，该函数是未定义的，除非在构造函数中传入
     loadingManager.onLoad = function () {
-      console.log(11111111111112);
       const yPosition = { y: 0 };
-      const ftsLoader = document.querySelector(".lds-roller");
       const loadingCover = document.getElementById("loading-text-intro");
       // 隐藏加载页面动画
       const tween = new TWEEN.Tween(yPosition)
@@ -238,9 +242,9 @@ export default class LightAndShadow extends Component<IProps, IState> {
           TWEEN.remove(tween);
           _self.setState({ isLoading: false });
         });
-      // 第一个页面相机添加入场动画
+      // 第一个页面相机添加入场动画 z:760.3392831164882
       const tween2 = new TWEEN.Tween(camera.position.set(10, 0, 0))
-        .to({ x: 5.397631049156189, y: 164.96800056555696, z: 760.3392831164882 }, 3500)
+        .to({ x: 5.397631049156189, y: 164.96800056555696, z: 466 }, 3500)
         .easing(TWEEN.Easing.Quadratic.InOut)
         .start()
         .onComplete(function () {
@@ -250,6 +254,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
       tween.start();
       tween2.start();
       window.scroll(0, 0);
+      console.log("loading_camera", camera.position);
     };
   };
 
@@ -271,24 +276,29 @@ export default class LightAndShadow extends Component<IProps, IState> {
     previousTime = elapsedTime;
     const parallaxY = cursor.y;
     const parallaxX = cursor.x;
-    // 点光源位置
+    // 点光源位置 范围 x:-145 ~ 170 | y:
     // pointLight.position.y += (parallaxY * 4 + pointLight.position.y - 2) * deltaTime;
     // pointLight.position.x -= (parallaxX * 8 - pointLight.position.x) * 2 * deltaTime;
 
     // camera.position.z -= (parallaxY / 3 + camera.position.z) * 2 * deltaTime;
     // camera.position.x += (parallaxX / 3 - camera.position.x) * 2 * deltaTime * 70;
     // camera.position.z -= 1;
-    console.log(
-      "first",
-      (parallaxX / 3 - camera.position.x) * 2 * deltaTime * 70
-      // pointLight.position,
-      // camera.position
-    );
+    // console.log("first", parallaxY * 4, pointLight.position.y, deltaTime);
 
-    // let deltaTime = clock.getDelta();
-    //   根据当前滚动的scrolly，去设置相机移动的位置
-    // camera.position.y = -(window.scrollY / window.innerHeight) * 30;
-    // camera.position.x += (cursor.x * 5 - camera.position.x) * deltaTime * 5;
+    // if (
+    //   (pointLight.position.x < maxLightX && pointLight.position.x > minLightX) ||
+    //   (pointLight.position.x > maxLightX && parallaxY < 0) ||
+    //   (pointLight.position.x < minLightX && parallaxY > 0)
+    // ) {
+    //   pointLight.position.x += parallaxX * 4;
+    // }
+    // if (
+    //   (pointLight.position.y < minLightY && pointLight.position.y > maxLightY) ||
+    //   (pointLight.position.y > minLightY && parallaxX < 0) ||
+    //   (pointLight.position.y < maxLightY && parallaxX > 0)
+    // ) {
+    //   pointLight.position.y += parallaxY * 2;
+    // }
 
     TWEEN.update(); // !!!
     // controls.update();
@@ -336,11 +346,11 @@ export default class LightAndShadow extends Component<IProps, IState> {
             <div className="cursor"></div>
           </nav>
           <section className="section first">
-            <div className="info">
+            {/* <div className="info">
               <h2 className="name">DRAGONIR</h2>
               <h1 className="title">THREE.JS ODESSEY</h1>
               <p className="description">&nbsp;</p>
-            </div>
+            </div> */}
             <canvas id="canvas-container" className="webgl"></canvas>
           </section>
           {/* <section className="section second">
