@@ -28,8 +28,8 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import TWEEN from "@tweenjs/tween.js";
 import * as dat from "lil-gui";
-// import BackgroundImg from "@/assets/textures/2d/background.png";
-import BackgroundImg from "@/assets/textures/2d/bg.jpg";
+import BackgroundImg from "@/assets/textures/2d/background.png";
+// import BackgroundImg from "@/assets/textures/2d/bg.jpg";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any,
@@ -87,22 +87,21 @@ export default class LightAndShadow extends Component<IProps, IState> {
     // camera.position.set(0, 0, 12);
     camera.lookAt(new Vector3(0, 0, 0));
     scene.add(camera);
-    // renderer.render(scene, camera);
 
     // Controls
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
-    controls.enableDamping = true;
-    controls.enablePan = false;
+    controls.enableDamping = true; // 禁用摄像机平移
+    controls.enablePan = false; // 阻尼
     // 垂直旋转角度限制
-    controls.minPolarAngle = 1.2;
-    controls.maxPolarAngle = 1.8;
+    controls.minPolarAngle = 1.5;
+    controls.maxPolarAngle = 1.7;
     // 水平旋转角度限制
-    controls.minAzimuthAngle = -0.6;
-    controls.maxAzimuthAngle = 0.6;
+    controls.minAzimuthAngle = -0.5; // 向右
+    controls.maxAzimuthAngle = 0.3; // 向左
 
     controls.addEventListener("change", () => {
-      // console.log(`output->change`, camera.position);
+      console.log(`output->change`, controls);
     });
 
     // IMAGE ARRAY
@@ -129,8 +128,8 @@ export default class LightAndShadow extends Component<IProps, IState> {
     let aspect = 18;
     for (let i = 0; i < layers.length; i++) {
       let mesh = new Mesh(
-        // new PlaneGeometry(10.41, 16),
-        new PlaneGeometry(5.41, 8),
+        new PlaneGeometry(10.41, 16),
+        // new PlaneGeometry(5.41, 8),
         new MeshPhysicalMaterial({
           map: new TextureLoader().load(layers[i]),
           transparent: true,
@@ -183,16 +182,15 @@ export default class LightAndShadow extends Component<IProps, IState> {
     gui.add(directionLight.position, "x").min(-50).max(50).step(1).name("pointLight_x");
     gui.add(directionLight.position, "y").min(-50).max(50).step(1).name("pointLight_y");
     gui.add(directionLight.position, "z").min(-50).max(50).step(1).name("pointLight_z");
-
     // 颜色
     gui.addColor(directionLight, "color").onChange((val: string) => {
       directionLight.color.set(val);
     });
 
-    // gui.add(directionLight.shadow.camera, "top").min(-150).max(150).step(1).name("top");
-    // gui.add(directionLight.shadow.camera, "bottom").min(-150).max(150).step(1).name("bottom");
-    // gui.add(directionLight.shadow.camera, "left").min(-150).max(150).step(1).name("left");
-    // gui.add(directionLight.shadow.camera, "right").min(-150).max(150).step(1).name("right");
+    gui.add(controls, "minPolarAngle").min(-10).max(10).step(0.1).name("minPolarAngle");
+    gui.add(controls, "maxPolarAngle").min(-10).max(10).step(0.1).name("maxPolarAngle");
+    gui.add(controls, "minAzimuthAngle").min(-6).max(6).step(0.1).name("minAzimuthAngle");
+    gui.add(controls, "maxAzimuthAngle").min(-6).max(6).step(0.1).name("maxAzimuthAngle");
   }
 
   // 光源
@@ -203,7 +201,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
 
     // 直射光
     directionLight = new DirectionalLight(0x3a2622, 1);
-    directionLight.position.set(-9, -8, 12);
+    directionLight.position.set(-9, -8, 50);
     // directionLight.position.set(10, 10, 30); // 位置
     // directionLight.target = cube; // 设置光源照射的对象target，光的照射终点会跟随着物体移动
     directionLight.castShadow = true; // 设置灯光的阴影属性
@@ -252,7 +250,7 @@ export default class LightAndShadow extends Component<IProps, IState> {
   addAnimation() {
     console.log(`1111111`);
     const tween = new TWEEN.Tween(camera.position)
-      .to({ x: 0, y: 0, z: 12 }, 600)
+      .to({ x: 0, y: 0, z: 16 }, 1600)
       .easing(TWEEN.Easing.Quadratic.InOut)
       .start()
       .onUpdate(function (object) {
