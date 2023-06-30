@@ -31,6 +31,7 @@ export default function HomePage() {
     { name: "mushroom", url: "mushroom" },
     { name: "editor", url: "editor" },
     { name: "girl", url: "girl" },
+    { name: "webview", url: "webview" },
   ];
   return (
     <div>

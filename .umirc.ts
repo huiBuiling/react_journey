@@ -29,8 +29,10 @@ export default defineConfig({
     { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
 
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
+    // OK
     { path: "/webview", component: "@/pages/lights/webview" },
-    { path: "/webview2", component: "@/pages/lights/webview2" },
+    // { path: "/webview2", component: "@/pages/lights/webview2" },
+    { path: "/2DImages", component: "@/pages/demos/2DImages" },
 
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
