@@ -34,6 +34,11 @@ export default defineConfig({
     // { path: "/webview2", component: "@/pages/lights/webview2" },
     { path: "/2DImages", component: "@/pages/demos/2DImages" },
 
+    // particle
+    { path: "/particle_1", component: "@/pages/particle/particle_1" },
+    { path: "/ParticlGalaxy", component: "@/pages/particle/ParticlGalaxy" },
+    { path: "/particle", component: "@/pages/particle/particle" },
+
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
 
