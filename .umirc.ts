@@ -37,7 +37,8 @@ export default defineConfig({
     // particle
     { path: "/particle_1", component: "@/pages/particle/particle_1" },
     { path: "/ParticlGalaxy", component: "@/pages/particle/ParticlGalaxy" },
-    { path: "/particle", component: "@/pages/particle/particle" },
+    { path: "/particleObj", component: "@/pages/particle/particle" },
+    { path: "/particleMap", component: "@/pages/particle/particleMap" },
 
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
