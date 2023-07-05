@@ -8,8 +8,8 @@ import {
   Box3,
   BufferAttribute,
   BufferGeometry,
+  Clock,
   Color,
-  DirectionalLight,
   DynamicDrawUsage,
   PerspectiveCamera,
   Points,
@@ -25,44 +25,34 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
-let controls: any,
-  layerGroup: any,
-  layers: any[],
-  aspect = 18;
-let ambientLight: AmbientLight, directionLight: DirectionalLight;
-let dialogBox: any = null,
-  step = 0;
-let geometry: any,
-  around: any,
-  aroundMaterial: any,
-  aroundPoints: any,
-  parent: any,
-  meshes: any,
-  positions: any,
-  mesh: any;
+let controls: any;
 
-let parameters: {
-  count: number;
-  size: number;
-  radius: number;
-  branches: number;
-  spin: number;
-  randomness: number;
-  randomnessPower: number;
+let positions: any, initialPositions: any, mesh: any;
+let count: number,
+  animate: boolean,
+  started: boolean = true;
+let data: any = {
+  speed: 10,
+  delay: 500,
+  verticesDown: 0,
+  verticesUp: 0,
+  direction: 0,
+  start: Math.floor(100 + 200 * Math.random()),
+};
 
-  insideColor: string;
-  outsideColor: string;
-} = {
-  count: 10000,
-  size: 0.02,
-  radius: 5, // 半径
-  branches: 3,
-  spin: 1, // 偏转角度 3
-  randomness: 0.2, // 扩散值
-  randomnessPower: 3,
+let isDrop = true;
 
-  insideColor: "#4D90FE",
-  outsideColor: "#E94242",
+let coordinate: any = {
+  d: 0,
+  px: 0,
+  py: 0,
+  pz: 0,
+  ix: 0,
+  iy: 0,
+  iz: 0,
+  dx: 0,
+  dy: 0,
+  dz: 0,
 };
 
 /**
@@ -89,6 +79,7 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   init = () => {
+    clock = new Clock();
     container = document.getElementById("container");
     // 渲染
     renderer = new WebGLRenderer({ antialias: true });
@@ -111,9 +102,9 @@ export default class Particl extends Component<IProps, IState> {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     // controls.autoRotate = true;
-    controls.addEventListener("change", () => {
-      console.log(`output->change`, camera.position);
-    });
+    // controls.addEventListener("change", () => {
+    //   console.log(`output->change`, camera.position);
+    // });
 
     // parent = new Object3D();
     // scene.add(parent);
@@ -136,11 +127,12 @@ export default class Particl extends Component<IProps, IState> {
 
   initModal() {
     const dracoLoader = new DRACOLoader();
-    // 离谱，使用本地无法加载
+    // 离谱，使用本地 /public 无法加载
     dracoLoader.setDecoderPath(`https://ysdl-model.oss-cn-shenzhen.aliyuncs.com/libs/r122/draco/`);
+    // dracoLoader.setDecoderPath("/");
     dracoLoader.preload();
     const gltfLoader = new GLTFLoader();
-    gltfLoader.setCrossOrigin("anonymous");
+    // gltfLoader.setCrossOrigin("anonymous");
     gltfLoader.setDRACOLoader(dracoLoader);
 
     gltfLoader.load(
@@ -158,11 +150,13 @@ export default class Particl extends Component<IProps, IState> {
         console.log("first", camera.position);
 
         positions = this.combineBuffer(model, "position");
-        this.createMesh(positions, scene, 1.05, 8.08, -98.98, 0, 0xffdd44); // 部分参考上面设置 camera.position
+        this.createMesh(positions, scene, 1.05, 8.08, -98.98, 0, 0x18bbf2); // 部分参考上面设置 camera.position
         // scene.add(model);
         dracoLoader.dispose();
 
         this.addGui();
+
+        this.breakDown();
       },
       (xhr) => {
         // console.log("xhr", xhr);
@@ -174,10 +168,12 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   combineBuffer(model: any, bufferName: string) {
+    // 获取顶点数量
     let count = 0;
     model.traverse((child: any) => {
       if (child.isMesh) {
         const buffer = child.geometry.attributes[bufferName];
+        // child.geometry.attributes.position
         count += buffer.array.length;
       }
     });
@@ -205,7 +201,7 @@ export default class Particl extends Component<IProps, IState> {
     mesh = new Points(
       geometry,
       new PointsMaterial({
-        size: 0.01,
+        size: 0.05,
         sizeAttenuation: true,
         depthWrite: false,
         blending: AdditiveBlending,
@@ -216,14 +212,19 @@ export default class Particl extends Component<IProps, IState> {
     mesh.position.x = x;
     mesh.position.y = y;
     mesh.position.z = z;
-
+    // console.log("mesh", mesh);
     scene.add(mesh);
+
+    data = { ...data, mesh };
+
+    console.log("data", data);
   }
 
   // 添加监听
   addEventFun() {
     //事件监听
-    window.addEventListener("resize", this.onWindowResize, false);
+    window.addEventListener("resize", () => this.onWindowResize(), false);
+    window.addEventListener("click", () => this.onWindowClick(), false);
   }
 
   // 控制波动
@@ -234,24 +235,133 @@ export default class Particl extends Component<IProps, IState> {
     gui.add(mesh.position, "z").min(-800).max(800).step(1).name("z");
   }
 
-  onWindowResize() {
-    window.addEventListener("resize", () => {
-      // Update camera
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
+  onWindowClick() {
+    console.log("click", isDrop);
+    if (isDrop) {
+      this.raiseHologram();
+      isDrop = false;
+    } else {
+      this.breakDown();
+      isDrop = true;
+    }
+  }
 
-      // Update renderer
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    });
+  onWindowResize() {
+    // Update camera
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    // Update renderer
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  }
+
+  raiseHologram() {
+    if (data.verticesDown >= count) {
+      data.direction = 1;
+      data.verticesDown = 0;
+      data.speed = 5;
+      // data.delay = 500;
+    }
+  }
+
+  breakDown() {
+    if (data.verticesUp >= count) {
+      data.direction = -1;
+      data.verticesUp = 0;
+    }
   }
 
   animation() {
     // TWEEN.update(); // !!!
+    if (mesh) {
+      // mesh.rotation.y += 0.01;
+      this.updateAnimation();
+    }
     controls.update();
     // 页面重绘时调用自身
     requestAnimationFrame(this.animation.bind(this));
     renderer.render(scene, camera);
+  }
+
+  updateAnimation() {
+    let delta = 10 * clock.getDelta();
+    delta = delta < 2 ? delta : 2;
+
+    positions = data.mesh.geometry.attributes.position;
+    initialPositions = data.mesh.geometry.attributes.initialPosition;
+
+    count = positions.count;
+
+    if (data.start > 0) {
+      data.start -= 1;
+    } else {
+      if (data.direction === 0) {
+        data.direction = -1;
+      }
+    }
+
+    for (let i = 0; i < count; i++) {
+      coordinate.px = positions.getX(i);
+      coordinate.py = positions.getY(i);
+      coordinate.pz = positions.getZ(i);
+
+      // falling down
+      if (data.direction < 0) {
+        if (coordinate.py > 0) {
+          positions.setXYZ(
+            i,
+            coordinate.px + 1.5 * (0.5 - Math.random()) * data.speed * delta,
+            coordinate.py + 3.0 * (0.25 - Math.random()) * data.speed * delta,
+            coordinate.pz + 1.5 * (0.5 - Math.random()) * data.speed * delta
+          );
+        } else {
+          data.verticesDown += 1;
+        }
+      }
+
+      // rising up
+      if (data.direction > 0) {
+        coordinate.ix = initialPositions.getX(i);
+        coordinate.iy = initialPositions.getY(i);
+        coordinate.iz = initialPositions.getZ(i);
+
+        coordinate.dx = Math.abs(coordinate.px - coordinate.ix);
+        coordinate.dy = Math.abs(coordinate.py - coordinate.iy);
+        coordinate.dz = Math.abs(coordinate.pz - coordinate.iz);
+
+        coordinate.d = coordinate.dx + coordinate.dy + coordinate.dx;
+
+        if (coordinate.d > 1) {
+          positions.setXYZ(
+            i,
+            coordinate.px -
+              ((coordinate.px - coordinate.ix) / coordinate.dx) * data.speed * delta * (0.85 - Math.random()),
+            coordinate.py -
+              ((coordinate.py - coordinate.iy) / coordinate.dy) * data.speed * delta * (1 + Math.random()),
+            coordinate.pz -
+              ((coordinate.pz - coordinate.iz) / coordinate.dz) * data.speed * delta * (0.85 - Math.random())
+          );
+        } else {
+          data.verticesUp += 1;
+        }
+      }
+    }
+
+    // all vertices down (go up)
+
+    // if (data.verticesDown >= count && animate === true) {
+    //   if (data.delay <= 0) {
+    //     data.direction = 1;
+    //     data.speed = 5;
+    //     data.verticesDown = 0;
+    //     // data.delay = 1000;
+    //   } else {
+    //     data.delay -= 1;
+    //   }
+    // }
+    // console.log("positions", positions);
+    positions.needsUpdate = true;
   }
 
   render() {
