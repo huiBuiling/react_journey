@@ -5,60 +5,42 @@ import {
   // VertexColors,
   AdditiveBlending,
   AmbientLight,
-  Box3,
-  BufferAttribute,
   BufferGeometry,
   Clock,
   Color,
   DirectionalLight,
-  DynamicDrawUsage,
+  DoubleSide,
   Float32BufferAttribute,
   Fog,
+  Group,
   HemisphereLight,
+  Mesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshPhongMaterial,
+  MeshStandardMaterial,
   PerspectiveCamera,
+  PlaneGeometry,
   Points,
   PointsMaterial,
   Scene,
+  SphereGeometry,
+  Spherical,
+  Sprite,
+  SpriteMaterial,
   sRGBEncoding,
   TextureLoader,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any;
-
-let positions: any, initialPositions: any, mesh: any;
-let count: number,
-  animate: boolean,
-  started: boolean = true;
-let data: any = {
-  speed: 10,
-  delay: 500,
-  verticesDown: 0,
-  verticesUp: 0,
-  direction: 0,
-  start: Math.floor(100 + 200 * Math.random()),
-};
-
-let isDrop = true;
-
-let coordinate: any = {
-  d: 0,
-  px: 0,
-  py: 0,
-  pz: 0,
-  ix: 0,
-  iy: 0,
-  iz: 0,
-  dx: 0,
-  dy: 0,
-  dz: 0,
-};
-
+let group: Group, textureLoader: TextureLoader;
+let satelliteGroup: any,
+  radius: number = 5,
+  groupDots: any;
 /**
  * 绚丽地球
  * https://joy1412.cn/pages/threejsearth/#%E5%8A%A8%E6%80%81%E6%98%9F%E7%A9%BA%E8%83%8C%E6%99%AF%E4%BB%8B%E7%BB%8D
@@ -100,6 +82,8 @@ export default class Particl extends Component<IProps, IState> {
     // 透视相机
     camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
     camera.position.set(5, -20, 200);
+    // camera.position.set(-44.71, -173.71829664983076, 90.81687760650826);
+
     camera.lookAt(0, 3, 0);
     scene.add(camera);
 
@@ -112,13 +96,22 @@ export default class Particl extends Component<IProps, IState> {
     // controls.addEventListener("change", () => {
     //   console.log(`output->change`, camera.position);
     // });
+    group = new Group();
+    satelliteGroup = new Group();
+    textureLoader = new TextureLoader();
 
     this.initLight();
     this.addEventFun();
-
+    // 星空背景
     this.initPoint();
-
-    // this.initModal();
+    // 地球
+    this.initEarth();
+    // 光晕
+    this.initHALO();
+    // 光圈
+    this.initAperture();
+    // 卫星
+    this.initSatellite();
   };
 
   initLight() {
@@ -161,22 +154,13 @@ export default class Particl extends Component<IProps, IState> {
     geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
 
     const textureLoader = new TextureLoader();
-    const texture = textureLoader.load(
-      `/textures/other/.png`,
-      (texture) => {
-        texture.encoding = sRGBEncoding;
-        texture.flipY = false;
-      },
-      // xhr => {
-      //   console.log('xhr', xhr)
-      // },
-      (err) => {
-        // console.log('err', err)
-      }
-    );
+    const texture = textureLoader.load(`/textures/other/gradient.png`, (texture) => {
+      texture.encoding = sRGBEncoding;
+      texture.flipY = false;
+    });
 
-    var starsMaterial = new PointsMaterial({
-      // map: texture,
+    const starsMaterial = new PointsMaterial({
+      map: texture,
       size: 1,
       transparent: true,
       opacity: 1,
@@ -187,128 +171,155 @@ export default class Particl extends Component<IProps, IState> {
 
     let stars = new Points(geometry, starsMaterial);
     stars.scale.set(300, 300, 300);
-    scene.add(stars);
+    // scene.add(stars);
   }
 
-  initModal() {
-    const dracoLoader = new DRACOLoader();
-    // 离谱，使用本地 /public 无法加载
-    dracoLoader.setDecoderPath(`https://ysdl-model.oss-cn-shenzhen.aliyuncs.com/libs/r122/draco/`);
-    // dracoLoader.setDecoderPath("/");
-    dracoLoader.preload();
-    const gltfLoader = new GLTFLoader();
-    // gltfLoader.setCrossOrigin("anonymous");
-    gltfLoader.setDRACOLoader(dracoLoader);
+  // 地球模型
+  initEarth() {
+    textureLoader.load("/textures/other/earth2.jpg", (texture) => {
+      const globeGgeometry = new SphereGeometry(50, 100, 100);
+      const globeMaterial = new MeshStandardMaterial({ map: texture, color: new Color("#ffffff"), opacity: 1 });
+      const globeMesh = new Mesh(globeGgeometry, globeMaterial);
 
-    gltfLoader.load(
-      "/model2/ramenHologram.gltf", // mushy_buddy statue
-      (gltf: any) => {
-        let model = gltf.scene;
-        console.log("model", model);
-
-        const box = new Box3().setFromObject(model); // 获取模型的包围盒
-        const pos = box.getCenter(new Vector3());
-        model.position.y = -pos.y;
-        const height = box.max.y;
-        const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-        camera.position.set(pos.x, pos.y, dist * 1.5);
-        console.log("first", camera.position);
-
-        positions = this.combineBuffer(model, "position");
-        this.createMesh(positions, scene, 1.05, 8.08, -98.98, 0, 0x18bbf2); // 部分参考上面设置 camera.position
-        // scene.add(model);
-        dracoLoader.dispose();
-
-        this.addGui();
-
-        this.breakDown();
-      },
-      (xhr) => {
-        // console.log("xhr", xhr);
-      },
-      (err) => {
-        console.log("err", err);
-      }
-    );
-  }
-
-  combineBuffer(model: any, bufferName: string) {
-    // 获取顶点数量
-    let count = 0;
-    model.traverse((child: any) => {
-      if (child.isMesh) {
-        const buffer = child.geometry.attributes[bufferName];
-        // child.geometry.attributes.position
-        count += buffer.array.length;
-      }
+      group.rotation.set(0.5, 2.9, 0.1);
+      group.add(globeMesh);
+      scene.add(group);
     });
-
-    const combined = new Float32Array(count);
-    let offset = 0;
-    model.traverse((child: any) => {
-      if (child.isMesh) {
-        const buffer = child.geometry.attributes[bufferName];
-        combined.set(buffer.array, offset);
-        offset += buffer.array.length;
-      }
-    });
-
-    return new BufferAttribute(combined, 3);
   }
 
-  createMesh(positions: BufferAttribute, scene: Scene, scale: number, x: number, y: number, z: number, color: number) {
-    const geometry = new BufferGeometry();
-    geometry.setAttribute("position", positions.clone());
-    geometry.setAttribute("initialPosition", positions.clone());
+  // 光晕效果
+  initHALO() {
+    const texture = textureLoader.load("/textures/other/aperture.jpg");
+    const spriteMaterial = new SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.23,
+      depthWrite: false,
+    });
+    const sprite = new Sprite(spriteMaterial);
+    sprite.scale.set(50 * 3, 32 * 3, 1);
+    group.add(sprite);
+  }
 
-    geometry.attributes.position.setUsage(DynamicDrawUsage);
+  // 卫星 * 2
+  initSatellite() {
+    const texture = textureLoader.load("/textures/other/satellite3.png");
+    // 设置两个卫星坐标
+    const p1 = new Vector3(-40, 65, 0);
+    const p2 = new Vector3(13, 0, 0);
+    const points = [p1, p2];
+    const geometry = new BufferGeometry().setFromPoints(points);
+    const material = new PointsMaterial({
+      map: texture,
+      transparent: true,
+      side: DoubleSide,
+      // 图片太小，一直没看到效果，原来是这里控制，其实就是粒子大小
+      size: 13, // 显示大小控制
+      depthWrite: false,
+      // color: new Color("#ffffff"),
+    });
+    const earthPoints = new Points(geometry, material);
+    satelliteGroup.add(earthPoints);
 
-    mesh = new Points(
-      geometry,
-      new PointsMaterial({
-        size: 0.05,
-        sizeAttenuation: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-        color: new Color(color),
-      })
-    );
-    // mesh.scale.x = mesh.scale.y = mesh.scale.z = scale;
-    mesh.position.x = x;
-    mesh.position.y = y;
-    mesh.position.z = z;
-    // console.log("mesh", mesh);
+    earthPoints.position.x = 80;
+    satelliteGroup.rotation.set(1.9, 0.5, 1);
+  }
+
+  // 光圈
+  initAperture() {
+    textureLoader.load("/textures/other/quan.png", (texture) => {
+      const geometry = new PlaneGeometry(180, 180);
+      const material = new MeshLambertMaterial({
+        map: texture,
+        transparent: true, // 很重要, 使用背景透明的png贴图，注意开启透明计算
+        // side: DoubleSide, // 双面可见
+        depthWrite: false, // 禁止写入深度缓冲区数据
+      });
+      const mesh = new Mesh(geometry, material);
+      satelliteGroup.add(mesh);
+      scene.add(satelliteGroup);
+      scene.add(mesh);
+    });
+  }
+
+  initLightPillar() {
+    // var e = (new r.xc).load(u)
+    //   , n = this;
+    const _self = this;
+    [
+      {
+        lng: 86.39895905468748,
+        lat: 45.15923349468924,
+      },
+      {
+        lng: 106.54041,
+        lat: 29.40268,
+      },
+    ].forEach((item) => {
+      console.log("item", this.lglt2xyz(item.lng, item.lat));
+      // const r = this.lglt2xyz(item.lng, item.lat),
+      //   i = this.createLightPillar(r);
+      //   groupDots.add(i);
+      // const a = this.createLightWaveMesh(r, e);
+      // i.add(a);
+    });
+  }
+
+  create() {
+    const plane = new PlaneGeometry(50, 200);
+    const material = new MeshPhongMaterial({
+      //设置矩形网格模型的纹理贴图(光柱特效)
+      map: textureLoader.load("光柱.png"),
+      // 双面显示
+      side: DoubleSide,
+      // 开启透明效果，否则颜色贴图map的透明不起作用
+      transparent: true,
+    });
+    const mesh = new Mesh(plane, material);
     scene.add(mesh);
+  }
 
-    data = { ...data, mesh };
+  lglt2xyz(lng: number, lat: number) {
+    const theta = (90 + lng) * (Math.PI / 180);
+    const phi = (90 - lat) * (Math.PI / 180);
+    return new Vector3().setFromSpherical(new Spherical(radius, phi, theta));
+  }
 
-    console.log("data", data);
+  createPointMesh(pos: any, texture: any) {
+    const planGeometry = new PlaneGeometry(180, 180);
+    const material = new MeshBasicMaterial({
+      map: texture,
+      transparent: true, //使用背景透明的png贴图，注意开启透明计算
+      // side: THREE.DoubleSide, //双面可见
+      depthWrite: false, //禁止写入深度缓冲区数据
+    });
+    var mesh = new Mesh(planGeometry, material);
+    var size = 5 * 0.04; //矩形平面Mesh的尺寸
+    mesh.scale.set(size, size, size); //设置mesh大小
+    //设置mesh位置
+    mesh.position.set(pos.x, pos.y, pos.z);
+    // mesh在球面上的法线方向(球心和球面坐标构成的方向向量)
+    var coordVec3 = new Vector3(pos.x, pos.y, pos.z).normalize();
+    // mesh默认在XOY平面上，法线方向沿着z轴new THREE.Vector3(0, 0, 1)
+    var meshNormal = new Vector3(0, 0, 1);
+    // 四元数属性.quaternion表示mesh的角度状态
+    //.setFromUnitVectors();计算两个向量之间构成的四元数值
+    mesh.quaternion.setFromUnitVectors(meshNormal, coordVec3);
+    return mesh;
   }
 
   // 添加监听
   addEventFun() {
     //事件监听
     window.addEventListener("resize", () => this.onWindowResize(), false);
-    window.addEventListener("click", () => this.onWindowClick(), false);
   }
 
   // 控制波动
   addGui() {
     let gui = new dat.GUI();
-    gui.add(mesh.position, "x").min(-800).max(800).step(1).name("x");
-    gui.add(mesh.position, "y").min(-800).max(800).step(1).name("y");
-    gui.add(mesh.position, "z").min(-800).max(800).step(1).name("z");
-  }
-
-  onWindowClick() {
-    console.log("click", isDrop);
-    if (isDrop) {
-      this.raiseHologram();
-      isDrop = false;
-    } else {
-      this.breakDown();
-      isDrop = true;
-    }
+    // gui.add(earthPoints.position, "x").min(-800).max(800).step(1).name("x");
+    // gui.add(earthPoints.position, "y").min(-800).max(800).step(1).name("y");
+    // gui.add(earthPoints.position, "z").min(-800).max(800).step(1).name("z");
   }
 
   onWindowResize() {
@@ -321,112 +332,13 @@ export default class Particl extends Component<IProps, IState> {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   }
 
-  raiseHologram() {
-    if (data.verticesDown >= count) {
-      data.direction = 1;
-      data.verticesDown = 0;
-      data.speed = 5;
-      // data.delay = 500;
-    }
-  }
-
-  breakDown() {
-    if (data.verticesUp >= count) {
-      data.direction = -1;
-      data.verticesUp = 0;
-    }
-  }
-
   animation() {
     // TWEEN.update(); // !!!
-    if (mesh) {
-      // mesh.rotation.y += 0.01;
-      this.updateAnimation();
-    }
+
     controls.update();
     // 页面重绘时调用自身
     requestAnimationFrame(this.animation.bind(this));
     renderer.render(scene, camera);
-  }
-
-  updateAnimation() {
-    let delta = 10 * clock.getDelta();
-    delta = delta < 2 ? delta : 2;
-
-    positions = data.mesh.geometry.attributes.position;
-    initialPositions = data.mesh.geometry.attributes.initialPosition;
-
-    count = positions.count;
-
-    if (data.start > 0) {
-      data.start -= 1;
-    } else {
-      if (data.direction === 0) {
-        data.direction = -1;
-      }
-    }
-
-    for (let i = 0; i < count; i++) {
-      coordinate.px = positions.getX(i);
-      coordinate.py = positions.getY(i);
-      coordinate.pz = positions.getZ(i);
-
-      // falling down
-      if (data.direction < 0) {
-        if (coordinate.py > 0) {
-          positions.setXYZ(
-            i,
-            coordinate.px + 1.5 * (0.5 - Math.random()) * data.speed * delta,
-            coordinate.py + 3.0 * (0.25 - Math.random()) * data.speed * delta,
-            coordinate.pz + 1.5 * (0.5 - Math.random()) * data.speed * delta
-          );
-        } else {
-          data.verticesDown += 1;
-        }
-      }
-
-      // rising up
-      if (data.direction > 0) {
-        coordinate.ix = initialPositions.getX(i);
-        coordinate.iy = initialPositions.getY(i);
-        coordinate.iz = initialPositions.getZ(i);
-
-        coordinate.dx = Math.abs(coordinate.px - coordinate.ix);
-        coordinate.dy = Math.abs(coordinate.py - coordinate.iy);
-        coordinate.dz = Math.abs(coordinate.pz - coordinate.iz);
-
-        coordinate.d = coordinate.dx + coordinate.dy + coordinate.dx;
-
-        if (coordinate.d > 1) {
-          positions.setXYZ(
-            i,
-            coordinate.px -
-              ((coordinate.px - coordinate.ix) / coordinate.dx) * data.speed * delta * (0.85 - Math.random()),
-            coordinate.py -
-              ((coordinate.py - coordinate.iy) / coordinate.dy) * data.speed * delta * (1 + Math.random()),
-            coordinate.pz -
-              ((coordinate.pz - coordinate.iz) / coordinate.dz) * data.speed * delta * (0.85 - Math.random())
-          );
-        } else {
-          data.verticesUp += 1;
-        }
-      }
-    }
-
-    // all vertices down (go up)
-
-    // if (data.verticesDown >= count && animate === true) {
-    //   if (data.delay <= 0) {
-    //     data.direction = 1;
-    //     data.speed = 5;
-    //     data.verticesDown = 0;
-    //     // data.delay = 1000;
-    //   } else {
-    //     data.delay -= 1;
-    //   }
-    // }
-    // console.log("positions", positions);
-    positions.needsUpdate = true;
   }
 
   render() {
