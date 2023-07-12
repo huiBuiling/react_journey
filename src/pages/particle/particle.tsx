@@ -2,8 +2,6 @@ import { Component } from "react";
 // import LegacyJSONLoader from "@/assets/particle/LegacyJSONLoader";
 import * as dat from "lil-gui";
 import {
-  // VertexColors,
-  AdditiveBlending,
   AmbientLight,
   Box3,
   BufferAttribute,
@@ -28,19 +26,26 @@ let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRend
 let controls: any;
 
 let positions: any, initialPositions: any, mesh: any;
-let count: number,
-  animate: boolean,
-  started: boolean = true;
+let count: number;
 let data: any = {
-  speed: 10,
+  // speed: 10,
+  // delay: 500,
+  // verticesDown: 0,
+  // verticesUp: 1025690,
+  // direction: 1,
+  // start: 0, // Math.floor(100 + 200 * Math.random()),
+
+  // 掉落数据
+  speed: 15,
   delay: 500,
   verticesDown: 0,
-  verticesUp: 0,
-  direction: 0,
-  start: Math.floor(100 + 200 * Math.random()),
+  verticesUp: 3074825,
+  direction: -1,
+  start: 0, // Math.floor(100 + 200 * Math.random()),
 };
 
-let isDrop = true;
+let isDrop = false,
+  isFirst = 0;
 
 let coordinate: any = {
   d: 0,
@@ -53,6 +58,16 @@ let coordinate: any = {
   dx: 0,
   dy: 0,
   dz: 0,
+  // d: 0.7094917297363281,
+  // dx: 0.29211997985839844,
+  // dy: 0.12525177001953125,
+  // dz: 0.3401832580566406,
+  // ix: 13.66729736328125,
+  // iy: 110.87184143066406,
+  // iz: -43.82656478881836,
+  // px: 15.386817932128906,
+  // py: -0.4157503545284271,
+  // pz: -41.0230827331543,
 };
 
 /**
@@ -76,6 +91,10 @@ export default class Particl extends Component<IProps, IState> {
   componentDidMount() {
     this.init();
     this.animation();
+
+    if (mesh) {
+      this.raiseHologram();
+    }
   }
 
   init = () => {
@@ -143,7 +162,7 @@ export default class Particl extends Component<IProps, IState> {
 
         const box = new Box3().setFromObject(model); // 获取模型的包围盒
         const pos = box.getCenter(new Vector3());
-        model.position.y = -pos.y;
+        // model.position.y = -pos.y;
         const height = box.max.y;
         const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
         camera.position.set(pos.x, pos.y, dist * 1.5);
@@ -151,12 +170,11 @@ export default class Particl extends Component<IProps, IState> {
 
         positions = this.combineBuffer(model, "position");
         this.createMesh(positions, scene, 1.05, 8.08, -98.98, 0, 0x18bbf2); // 部分参考上面设置 camera.position
+        // this.createMesh(positions, scene, 0.0225, -0.1, 4.5, -0.95, 0x18bbf2); // 部分参考上面设置 camera.position
         // scene.add(model);
         dracoLoader.dispose();
 
         this.addGui();
-
-        this.breakDown();
       },
       (xhr) => {
         // console.log("xhr", xhr);
@@ -169,16 +187,16 @@ export default class Particl extends Component<IProps, IState> {
 
   combineBuffer(model: any, bufferName: string) {
     // 获取顶点数量
-    let count = 0;
+    let _count = 0;
     model.traverse((child: any) => {
       if (child.isMesh) {
         const buffer = child.geometry.attributes[bufferName];
         // child.geometry.attributes.position
-        count += buffer.array.length;
+        _count += buffer.array.length;
       }
     });
 
-    const combined = new Float32Array(count);
+    const combined = new Float32Array(_count);
     let offset = 0;
     model.traverse((child: any) => {
       if (child.isMesh) {
@@ -188,6 +206,7 @@ export default class Particl extends Component<IProps, IState> {
       }
     });
 
+    data = { ...data, verticesUp: _count };
     return new BufferAttribute(combined, 3);
   }
 
@@ -201,14 +220,14 @@ export default class Particl extends Component<IProps, IState> {
     mesh = new Points(
       geometry,
       new PointsMaterial({
-        size: 0.05,
+        size: 1,
         sizeAttenuation: true,
         depthWrite: false,
-        blending: AdditiveBlending,
+        // blending: AdditiveBlending, // PointsMaterial 粒子设置颜色不生效问题
         color: new Color(color),
       })
     );
-    // mesh.scale.x = mesh.scale.y = mesh.scale.z = scale;
+    mesh.scale.x = mesh.scale.y = mesh.scale.z = scale;
     mesh.position.x = x;
     mesh.position.y = y;
     mesh.position.z = z;
@@ -216,7 +235,6 @@ export default class Particl extends Component<IProps, IState> {
     scene.add(mesh);
 
     data = { ...data, mesh };
-
     console.log("data", data);
   }
 
@@ -236,14 +254,18 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   onWindowClick() {
-    console.log("click", isDrop);
-    if (isDrop) {
+    console.log("click", isDrop, data, coordinate);
+    // if (!isDrop) {
+    //   this.raiseHologram();
+    //   isDrop = true;
+    // } else {
+    //   this.breakDown();
+    //   isDrop = false;
+    // }
+    this.breakDown();
+    setTimeout(() => {
       this.raiseHologram();
-      isDrop = false;
-    } else {
-      this.breakDown();
-      isDrop = true;
-    }
+    }, 5000);
   }
 
   onWindowResize() {
@@ -257,11 +279,12 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   raiseHologram() {
+    console.log("first, isEnd", isFirst);
     if (data.verticesDown >= count) {
       data.direction = 1;
       data.verticesDown = 0;
       data.speed = 5;
-      // data.delay = 500;
+      data.delay = 600;
     }
   }
 
@@ -277,6 +300,11 @@ export default class Particl extends Component<IProps, IState> {
     if (mesh) {
       // mesh.rotation.y += 0.01;
       this.updateAnimation();
+      // if (isFirst == 1) {
+      //   setTimeout(() => {
+      //     this.raiseHologram();
+      //   }, 2000);
+      // }
     }
     controls.update();
     // 页面重绘时调用自身
@@ -318,6 +346,8 @@ export default class Particl extends Component<IProps, IState> {
         } else {
           data.verticesDown += 1;
         }
+
+        isDrop = false;
       }
 
       // rising up
@@ -345,6 +375,8 @@ export default class Particl extends Component<IProps, IState> {
         } else {
           data.verticesUp += 1;
         }
+
+        isDrop = true;
       }
     }
 
@@ -361,7 +393,12 @@ export default class Particl extends Component<IProps, IState> {
     //   }
     // }
     // console.log("positions", positions);
+
+    if (coordinate.px > coordinate.ix) {
+      positions.setXYZ(1, coor);
+    }
     positions.needsUpdate = true;
+    isFirst += 1;
   }
 
   render() {
