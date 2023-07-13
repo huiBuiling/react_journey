@@ -393,10 +393,6 @@ export default class Particl extends Component<IProps, IState> {
     //   }
     // }
     // console.log("positions", positions);
-
-    if (coordinate.px > coordinate.ix) {
-      positions.setXYZ(1, coor);
-    }
     positions.needsUpdate = true;
     isFirst += 1;
   }
