@@ -17,6 +17,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  MeshPhongMaterial,
   MeshStandardMaterial,
   PerspectiveCamera,
   PlaneGeometry,
@@ -92,14 +93,9 @@ export default class Particl extends Component<IProps, IState> {
     controls.autoRotate = false;
     controls.autoRotateSpeed = 2;
     controls.enablePan = true;
-    controls.addEventListener("change", () => {
-      console.log(`output->change`, camera.position);
-    });
-
-    camera.position.x = -45.17972180789299;
-    camera.position.y = 191.26308250679668;
-    camera.position.z = 42.45263251389207;
-
+    // controls.addEventListener("change", () => {
+    //   console.log(`output->change`, camera.position);
+    // });
     group = new Group();
     satelliteGroup = new Group();
     textureLoader = new TextureLoader();
@@ -116,9 +112,6 @@ export default class Particl extends Component<IProps, IState> {
     this.initAperture();
     // 卫星
     this.initSatellite();
-
-    //
-    this.createPointMesh();
   };
 
   initLight() {
@@ -187,7 +180,7 @@ export default class Particl extends Component<IProps, IState> {
       const globeGgeometry = new SphereGeometry(50, 100, 100);
       const globeMaterial = new MeshStandardMaterial({ map: texture, color: new Color("#ffffff"), opacity: 1 });
       const globeMesh = new Mesh(globeGgeometry, globeMaterial);
-      globeMesh.renderOrder = 0;
+
       group.rotation.set(0.5, 2.9, 0.1);
       group.add(globeMesh);
       scene.add(group);
@@ -212,10 +205,8 @@ export default class Particl extends Component<IProps, IState> {
   initSatellite() {
     const texture = textureLoader.load("/textures/other/satellite3.png");
     // 设置两个卫星坐标
-    // const p1 = new Vector3(10, 10, 0);
-    // const p2 = new Vector3(0, 20, 10);
-    var p1 = new Vector3(140, 2, -7);
-    var p2 = new Vector3(6, 8, 0);
+    const p1 = new Vector3(-40, 65, 0);
+    const p2 = new Vector3(13, 0, 0);
     const points = [p1, p2];
     const geometry = new BufferGeometry().setFromPoints(points);
     const material = new PointsMaterial({
@@ -223,28 +214,19 @@ export default class Particl extends Component<IProps, IState> {
       transparent: true,
       side: DoubleSide,
       // 图片太小，一直没看到效果，原来是这里控制，其实就是粒子大小
-      size: 20, // 显示大小控制
+      size: 13, // 显示大小控制
       depthWrite: false,
       // color: new Color("#ffffff"),
     });
     const earthPoints = new Points(geometry, material);
     satelliteGroup.add(earthPoints);
 
-    console.log("earthPoints", earthPoints);
-
-    // let gui = new dat.GUI();
-    // gui.add(earthPoints.position, "x").min(-200).max(200).step(1).name("x");
-    // gui.add(earthPoints.position, "y").min(-200).max(200).step(1).name("y");
-    // gui.add(earthPoints.position, "z").min(-200).max(200).step(1).name("z");
-
-    earthPoints.position.x = -80;
-    earthPoints.renderOrder = 3;
-    // satelliteGroup.rotation.set(1.9, 0.5, 1);
+    earthPoints.position.x = 80;
+    satelliteGroup.rotation.set(1.9, 0.5, 1);
   }
 
   // 光圈
   initAperture() {
-    // quan.png
     textureLoader.load("/textures/other/quan.png", (texture) => {
       const geometry = new PlaneGeometry(180, 180);
       const material = new MeshLambertMaterial({
@@ -254,10 +236,9 @@ export default class Particl extends Component<IProps, IState> {
         depthWrite: false, // 禁止写入深度缓冲区数据
       });
       const mesh = new Mesh(geometry, material);
-      mesh.renderOrder = 1;
       satelliteGroup.add(mesh);
-      group.add(satelliteGroup);
-      group.add(mesh);
+      scene.add(satelliteGroup);
+      scene.add(mesh);
     });
   }
 
@@ -284,28 +265,26 @@ export default class Particl extends Component<IProps, IState> {
     });
   }
 
-  // create() {
-  //   const plane = new PlaneGeometry(50, 200);
-  //   const material = new MeshPhongMaterial({
-  //     //设置矩形网格模型的纹理贴图(光柱特效)
-  //     map: textureLoader.load("光柱.png"),
-  //     // 双面显示
-  //     side: DoubleSide,
-  //     // 开启透明效果，否则颜色贴图map的透明不起作用
-  //     transparent: true,
-  //   });
-  //   const mesh = new Mesh(plane, material);
-  //   scene.add(mesh);
-  // }
+  create() {
+    const plane = new PlaneGeometry(50, 200);
+    const material = new MeshPhongMaterial({
+      //设置矩形网格模型的纹理贴图(光柱特效)
+      map: textureLoader.load("光柱.png"),
+      // 双面显示
+      side: DoubleSide,
+      // 开启透明效果，否则颜色贴图map的透明不起作用
+      transparent: true,
+    });
+    const mesh = new Mesh(plane, material);
+    scene.add(mesh);
+  }
 
-  // 经纬度转换
   lglt2xyz(lng: number, lat: number) {
     const theta = (90 + lng) * (Math.PI / 180);
     const phi = (90 - lat) * (Math.PI / 180);
     return new Vector3().setFromSpherical(new Spherical(radius, phi, theta));
   }
 
-  // 添加标注
   createPointMesh(pos: any, texture: any) {
     const planGeometry = new PlaneGeometry(180, 180);
     const material = new MeshBasicMaterial({
@@ -354,8 +333,6 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   animation() {
-    // TWEEN.update(); // !!!
-
     controls.update();
     // 页面重绘时调用自身
     requestAnimationFrame(this.animation.bind(this));

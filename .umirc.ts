@@ -53,6 +53,7 @@ export default defineConfig({
     { path: "/raw", component: "@/pages/shaders/raw" },
     { path: "/demo", component: "@/pages/shaders/demo" },
     { path: "/IronBall", component: "@/pages/shaders/IronBall" },
+    { path: "/points", component: "@/pages/shaders/points" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",
