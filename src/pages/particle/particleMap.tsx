@@ -40,6 +40,7 @@ let group: Group, textureLoader: TextureLoader;
 let satelliteGroup: any,
   radius: number = 5,
   groupDots: any;
+let PiontAnimationArr: any[];
 /**
  * 绚丽地球
  * https://joy1412.cn/pages/threejsearth/#%E5%8A%A8%E6%80%81%E6%98%9F%E7%A9%BA%E8%83%8C%E6%99%AF%E4%BB%8B%E7%BB%8D
@@ -96,9 +97,15 @@ export default class Particl extends Component<IProps, IState> {
       console.log(`output->change`, camera.position);
     });
 
-    camera.position.x = -45.17972180789299;
-    camera.position.y = 191.26308250679668;
-    camera.position.z = 42.45263251389207;
+    // camera.position.x = -45.17972180789299;
+    // camera.position.y = 191.26308250679668;
+    // camera.position.z = 42.45263251389207;
+
+    camera.position.x = -71.68;
+    camera.position.y = 303.47;
+    camera.position.z = 67.358;
+
+    let gui = new dat.GUI();
 
     group = new Group();
     satelliteGroup = new Group();
@@ -118,7 +125,23 @@ export default class Particl extends Component<IProps, IState> {
     this.initSatellite();
 
     //
-    this.createPointMesh();
+    const _texture = textureLoader.load("/textures/other/quanq.png");
+    const _pointMesh = this.createPointMesh(
+      {
+        x: 19,
+        y: 80,
+        z: -1,
+      },
+      _texture
+    );
+    gui.add(_pointMesh.position, "x").min(-80).max(80).step(1).name("x");
+    gui.add(_pointMesh.position, "y").min(-80).max(80).step(1).name("y");
+    gui.add(_pointMesh.position, "z").min(-80).max(80).step(1).name("z");
+    // _pointMesh.rotateY(-5);
+    _pointMesh.renderOrder = 3;
+    // PiontAnimationArr.push(_pointMesh);
+    PiontAnimationArr = [_pointMesh];
+    scene.add(_pointMesh);
   };
 
   initLight() {
@@ -306,27 +329,44 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   // 添加标注
-  createPointMesh(pos: any, texture: any) {
-    const planGeometry = new PlaneGeometry(180, 180);
+  createPointMesh(pos: any, texture?: any) {
+    const planGeometry = new PlaneGeometry(80, 80);
     const material = new MeshBasicMaterial({
       map: texture,
       transparent: true, //使用背景透明的png贴图，注意开启透明计算
-      // side: THREE.DoubleSide, //双面可见
-      depthWrite: false, //禁止写入深度缓冲区数据
+      // // side: THREE.DoubleSide, //双面可见
+      // depthWrite: false, //禁止写入深度缓冲区数据
+      // color: new Color("#E63F32"),
     });
-    var mesh = new Mesh(planGeometry, material);
-    var size = 5 * 0.04; //矩形平面Mesh的尺寸
+    const mesh = new Mesh(planGeometry, material);
+    const size = 5 * 0.04; //矩形平面Mesh的尺寸
     mesh.scale.set(size, size, size); //设置mesh大小
     //设置mesh位置
     mesh.position.set(pos.x, pos.y, pos.z);
     // mesh在球面上的法线方向(球心和球面坐标构成的方向向量)
-    var coordVec3 = new Vector3(pos.x, pos.y, pos.z).normalize();
+    const coordVec3 = new Vector3(pos.x, pos.y, pos.z).normalize();
     // mesh默认在XOY平面上，法线方向沿着z轴new THREE.Vector3(0, 0, 1)
-    var meshNormal = new Vector3(0, 0, 1);
+    const meshNormal = new Vector3(0, 0, 1);
     // 四元数属性.quaternion表示mesh的角度状态
     //.setFromUnitVectors();计算两个向量之间构成的四元数值
     mesh.quaternion.setFromUnitVectors(meshNormal, coordVec3);
     return mesh;
+  }
+
+  PiontAnimation() {
+    PiontAnimationArr.forEach((_mesh: any) => {
+      _mesh._s += 0.007;
+      _mesh.scale.set(_mesh.size * _mesh._s, _mesh.size * _mesh._s, _mesh.size * _mesh._s);
+      if (_mesh._s <= 1.5) {
+        //mesh._s=1，透明度=0 mesh._s=1.5，透明度=1
+        _mesh.material.opacity = (_mesh._s - 1) * 2;
+      } else if (_mesh._s > 1.5 && _mesh._s <= 2) {
+        //mesh._s=1.5，透明度=1 mesh._s=2，透明度=0
+        _mesh.material.opacity = 1 - (_mesh._s - 1.5) * 2;
+      } else {
+        _mesh._s = 1.0;
+      }
+    });
   }
 
   // 添加监听
@@ -337,7 +377,6 @@ export default class Particl extends Component<IProps, IState> {
 
   // 控制波动
   addGui() {
-    let gui = new dat.GUI();
     // gui.add(earthPoints.position, "x").min(-800).max(800).step(1).name("x");
     // gui.add(earthPoints.position, "y").min(-800).max(800).step(1).name("y");
     // gui.add(earthPoints.position, "z").min(-800).max(800).step(1).name("z");
@@ -355,6 +394,11 @@ export default class Particl extends Component<IProps, IState> {
 
   animation() {
     // TWEEN.update(); // !!!
+
+    // 光圈标注动画
+    if (PiontAnimationArr?.length) {
+      // this.PiontAnimation();
+    }
 
     controls.update();
     // 页面重绘时调用自身
