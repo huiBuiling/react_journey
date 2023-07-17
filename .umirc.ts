@@ -27,7 +27,7 @@ export default defineConfig({
     { path: "/girl", component: "@/pages/demos/girl" },
     { path: "/editor", component: "@/pages/editor/index" },
     { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
-
+    { path: "/map", component: "@/pages/demos/map" },
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
     // OK
     { path: "/webview", component: "@/pages/lights/webview" },
