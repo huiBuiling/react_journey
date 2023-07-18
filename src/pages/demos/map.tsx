@@ -103,6 +103,8 @@ export default class Map extends Component<IProps, IState> {
     controls.autoRotate = false;
     controls.autoRotateSpeed = 2;
     controls.enablePan = true;
+    // 限制控制器角度
+    controls.maxPolarAngle = Math.PI * 0.5;
     // controls.addEventListener("change", () => {
     //   console.log(`output->change`, camera.position);
     // });
@@ -131,24 +133,20 @@ export default class Map extends Component<IProps, IState> {
    * adcode: 440100
    */
   async createChart(_data: any) {
-    datas = _data;
-    let startTime = new Date().getTime();
-
-    //限制控制器角度
-    controls.maxPolarAngle = Math.PI * 0.5;
+    if (_data) {
+      datas = _data;
+    }
 
     options = datas;
-
     if (adcode != options.adcode || !geoJson) {
       //获取geojson
       let res = await queryGeojson(options.adcode, true);
-      let res1 = await queryGeojson(options.adcode, false);
+      // let res1 = await queryGeojson(options.adcode, false);
       geoJson = res;
       adcode = options.adcode;
-      geoJson1 = res1;
-
+      // geoJson1 = res1;
       //获取区块信息
-      let info = getGeoInfo(geoJson1);
+      let info = getGeoInfo({ ...geoJson });
       geoInfo = info;
       //坐标范围
       bounding = info.bounding;
@@ -194,9 +192,8 @@ export default class Map extends Component<IProps, IState> {
 
     mapGroup = new Group();
     let colorList = getGadientArray(options.regionStyle.colorList[0], options.regionStyle.colorList[1], colorNum);
-
     const extrudeSettings = {
-      depth: options.regionStyle.depth * sizeScale,
+      depth: options.regionStyle.depth * sizeScale, // 当前区块深度
       bevelEnabled: false,
     };
     //区块边框线颜色
@@ -345,20 +342,20 @@ export default class Map extends Component<IProps, IState> {
   }
 
   /**
-   * 4. 悬浮激活区块
-   * 存储原来的区块材质，赋值激活状态材质，还要根据悬浮区块计算位置与大小，显示提示文本
+   * 4. 点击区块 激活区块 -> 高亮
+   * 存储原来的区块材质，赋值激活状态材质
    */
   doMouseAction(isChange: boolean) {
     // console.log("isChange", isChange, actionElmts);
     const intersects = raycaster.intersectObjects(actionElmts, true);
     let newActiveObj: any;
     if (intersects.length > 0) {
-      newActiveObj = intersects[0].object;
+      newActiveObj = intersects[0].object; // 当前点击 射线检测 选中块
     }
 
+    // 判断是否点击和上一次 区块 是否不相同
     if ((activeObj && newActiveObj && activeObj.name != newActiveObj.name) || (!activeObj && newActiveObj)) {
-      console.log("active", newActiveObj);
-      // 删除旧的提示文本
+      // 删除上一次的提示文本
       // if (tooltip) {
       //   this.cleanObj(tooltip);
       //   tooltip = null;
@@ -385,12 +382,9 @@ export default class Map extends Component<IProps, IState> {
 
       // 获取当前点击区块，区块可能由多个 mesh 构成，n > length > 1
       let regions = actionElmts.filter((item) => item.name == newActiveObj.name);
-      console.log("regions", regions, newActiveObj);
-
       // 将当前选中区块材质设置成 激活状态材质
       if (regions?.length) {
         let center = new Vector3();
-        console.log("activeRegionMaterial", activeRegionMaterial);
         regions.forEach((elmt: any) => {
           elmt.material = activeRegionMaterial;
           elmt.updateMatrixWorld();
@@ -400,6 +394,7 @@ export default class Map extends Component<IProps, IState> {
           // center.y += c.y;
           // center.z += c.z;
         });
+
         //计算中心点，创建提示文本
         // center.x = center.x / regions.length;
         // center.y = center.y / regions.length;
@@ -408,66 +403,69 @@ export default class Map extends Component<IProps, IState> {
         // let objBox = new Box3().setFromObject(newActiveObj);
         // this.createToolTip(regionName, regionIdx, center, objBox.getSize());
         // }
+
         // 更新点击数据
-        regionsDatas = regions;
-        activeObj = newActiveObj;
+        regionsDatas = regions; // 当前选中总区块 length > 1
+        activeObj = newActiveObj; // 当前点击选中块 length = 1
       }
-      //点击下钻
+
+      // 选中区块高度降低，显示为下降状态
+      // console.log("geoJson.features", geoJson.features, datas);
       // if (isChange && newActiveObj && activeObj) {
       //   let f = geoJson.features[activeObj.IDX];
       //   console.log("datas", datas, f);
       //   datas.adcode = f.properties.adcode;
       //   datas.address = f.properties.name;
-      //   console.log("next region", datas.adcode);
       //   this.createChart(datas);
       // }
     }
   }
 
   /**
+   * 点击区块
    * 创建提示文本
    */
-  // createToolTip(
-  //   regionName: string,
-  //   regionIdx: number,
-  //   center: {
-  //     x: number;
-  //     y: number;
-  //     z: number;
-  //   },
-  //   scale: any
-  // ) {
-  //   let op = datas;
-  //   let text;
-  //   let data;
-  //   //文本格式化替换
-  //   if (regionIdx >= 0) {
-  //     data = op.data[regionIdx];
-  //     text = op.tooltip.formatter;
-  //   } else {
-  //     text = "{name}";
-  //   }
+  createToolTip(
+    regionName: string,
+    regionIdx: number,
+    center: {
+      x: number;
+      y: number;
+      z: number;
+    },
+    scale: any
+  ) {
+    let op = datas;
+    let text;
+    let data;
+    //文本格式化替换
+    if (regionIdx >= 0) {
+      data = op.data[regionIdx];
+      text = op.tooltip.formatter;
+    } else {
+      text = "{name}";
+    }
 
-  //   if (text.indexOf("{name}") >= 0) {
-  //     text = text.replace("{name}", regionName);
-  //   }
-  //   if (text.indexOf("{value}") >= 0) {
-  //     text = text.replace("{value}", data.value);
-  //   }
+    if (text.indexOf("{name}") >= 0) {
+      text = text.replace("{name}", regionName);
+    }
+    if (text.indexOf("{value}") >= 0) {
+      text = text.replace("{value}", data.value);
+    }
 
-  //   // 生成五倍（sizeScale）大小的canvas贴图，避免大小问题出现显示模糊
-  //   const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale, op.tooltip.color, op.tooltip.bg);
-  //   console.log(canvas.width, canvas.height);
+    // 生成五倍（sizeScale）大小的canvas贴图，避免大小问题出现显示模糊
+    const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale, op.tooltip.color, op.tooltip.bg);
+    console.log(canvas.width, canvas.height);
 
-  //   let mesh: any = getCanvaMat(canvas, 0.02);
-  //   let s = latlngScale / sizeScale;
-  //   //注意canvas精灵的大小要保持比例
-  //   mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
-  //   let box: any = new Box3().setFromObject(mesh);
-  //   tooltip = mesh;
-  //   tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
-  //   scene.add(mesh);
-  // }
+    let mesh: any = getCanvaMat(canvas, 0.02);
+    let s = latlngScale / sizeScale;
+    //注意canvas精灵的大小要保持比例
+    mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
+    let box: any = new Box3().setFromObject(mesh);
+    tooltip = mesh;
+    tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
+    scene.add(mesh);
+  }
 
   // 控制波动
   addGui() {
