@@ -318,6 +318,7 @@ export function getTextSprite(THREE, text, fontSize, color, bg) {
  * @param {string} startColor 开始颜色
  * @param {string} endColor  结束颜色
  * @param {number} step 颜色数量
+ * 
  */
 export function getGadientArray(startColor, endColor, step) {
   let { red: startR, green: startG, blue: startB } = getColor(startColor);

@@ -1,10 +1,7 @@
 import { Component } from "react";
-// import LegacyJSONLoader from "@/assets/particle/LegacyJSONLoader";
 import * as dat from "lil-gui";
 import {
-  Box3,
   BufferGeometry,
-  CanvasTexture,
   Clock,
   Color,
   DoubleSide,
@@ -16,26 +13,31 @@ import {
   Mesh,
   MeshBasicMaterial,
   PerspectiveCamera,
-  RepeatWrapping,
   Scene,
   Shape,
-  Sprite,
-  SpriteMaterial,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-import { getGadientArray, getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
+import { getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
 import mapOption from "./maps/mapOption.js";
-import { getCanvasText, getColor } from "./maps/utils";
+import { getGadientArray, getCanvasText, getColor } from "./maps/utils";
+import { setModelCenter, getCanvaMat } from "./maps/threeUtil";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any, gui: any;
-let options: any, geoJson: any, adcode: any, geoJson1: any, geoInfo: any, bounding: any;
-let sizeScale: number, latlngScale: number;
+let options: any, geoJson: any, adcode: any, geoJson1: any, geoInfo: any;
+let bounding: any = {
+  minlat: Number.MAX_VALUE,
+  minlng: Number.MAX_VALUE,
+  maxlng: 0,
+  maxlat: 0,
+};
+let sizeScale: number = 1,
+  latlngScale: number = 10,
+  colorNum: number = 5;
 let activeRegionMat: any, mapGroup: Group, objGroup: Group;
-let colorNum: number;
 let actionElmts: any[]; // 收集动作元素
 let tooltip: any; // 提示
 let datas: any;
@@ -57,9 +59,7 @@ export default class Map extends Component<IProps, IState> {
   constructor(props: IProps) {
     super(props);
 
-    this.state = {
-      // isLoading: true,
-    };
+    this.state = {};
   }
 
   componentDidMount() {
@@ -156,7 +156,6 @@ export default class Map extends Component<IProps, IState> {
    * 根据生成热力颜色列表值所在的区间取对应颜色值
    */
   loaderExturdeGeometry() {
-    // let options = this.that;
     let minValue: any;
     let maxValue: any;
     let valueLen: any;
@@ -176,14 +175,15 @@ export default class Map extends Component<IProps, IState> {
     //生成热力颜色列表
     const _cdata = getColor(options.regionStyle.emphasisColor);
     activeRegionMat = new MeshBasicMaterial({
-      color: _cdata.result,
+      color: new Color(_cdata.result),
+      // color: _cdata.result,
       transparent: true,
       opacity: 0.01 * _cdata.alpha,
       side: DoubleSide,
     });
 
     mapGroup = new Group();
-    let colorList = getGadientArray(options.regionStyle.colorList[0], options.regionStyle.colorList[1], this.colorNum);
+    let colorList = getGadientArray(options.regionStyle.colorList[0], options.regionStyle.colorList[1], colorNum);
 
     const extrudeSettings = {
       depth: options.regionStyle.depth * sizeScale,
@@ -207,7 +207,7 @@ export default class Map extends Component<IProps, IState> {
         let cIdx = Math.floor((regionData.value - minValue) / valueLen);
         cIdx = cIdx >= colorNum ? colorNum - 1 : cIdx;
         regionColor = colorList[cIdx];
-        // console.log('%c' + regionName + regionData.value, 'background:' + regionColor);
+        // console.log("%c" + regionName + regionData.value, "background:" + regionColor);
       }
 
       let op: {
@@ -245,7 +245,7 @@ export default class Map extends Component<IProps, IState> {
 
     objGroup.add(mapGroup);
     scene.add(objGroup);
-    this.setModelCenter(objGroup, options.viewControl);
+    setModelCenter(camera, objGroup, options.viewControl);
   }
 
   /**
@@ -315,107 +315,47 @@ export default class Map extends Component<IProps, IState> {
   /**
    * 创建提示文本
    */
-  createToolTip(
-    regionName: string,
-    regionIdx: number,
-    center: {
-      x: number;
-      y: number;
-      z: number;
-    },
-    scale: any
-  ) {
-    let op = datas;
-    let text;
-    let data;
-    //文本格式化替换
-    if (regionIdx >= 0) {
-      data = op.data[regionIdx];
-      text = op.tooltip.formatter;
-    } else {
-      text = "{name}";
-    }
+  // createToolTip(
+  //   regionName: string,
+  //   regionIdx: number,
+  //   center: {
+  //     x: number;
+  //     y: number;
+  //     z: number;
+  //   },
+  //   scale: any
+  // ) {
+  //   let op = datas;
+  //   let text;
+  //   let data;
+  //   //文本格式化替换
+  //   if (regionIdx >= 0) {
+  //     data = op.data[regionIdx];
+  //     text = op.tooltip.formatter;
+  //   } else {
+  //     text = "{name}";
+  //   }
 
-    if (text.indexOf("{name}") >= 0) {
-      text = text.replace("{name}", regionName);
-    }
-    if (text.indexOf("{value}") >= 0) {
-      text = text.replace("{value}", data.value);
-    }
+  //   if (text.indexOf("{name}") >= 0) {
+  //     text = text.replace("{name}", regionName);
+  //   }
+  //   if (text.indexOf("{value}") >= 0) {
+  //     text = text.replace("{value}", data.value);
+  //   }
 
-    //生成五倍大小的canvas贴图，避免大小问题出现显示模糊
-    const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale, op.tooltip.color, op.tooltip.bg);
-    console.log(canvas.width, canvas.height);
-    let mesh: any = this.getCanvaMat(canvas, 0.02);
-    let s = latlngScale / sizeScale;
-    //注意canvas精灵的大小要保持比例
-    mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
-    let box: any = new Box3().setFromObject(mesh);
-    tooltip = mesh;
-    tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
-    scene.add(mesh);
-  }
+  //   // 生成五倍（sizeScale）大小的canvas贴图，避免大小问题出现显示模糊
+  //   const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale, op.tooltip.color, op.tooltip.bg);
+  //   console.log(canvas.width, canvas.height);
 
-  getCanvaMat(canvas: any, scale = 0.1) {
-    const map = new CanvasTexture(canvas);
-    map.wrapS = map.wrapT = RepeatWrapping;
-
-    const material = new SpriteMaterial({
-      map: map,
-      side: DoubleSide,
-    });
-    const mesh = new Sprite(material);
-    //缩小等比缩小canvas精灵贴图
-    mesh.scale.set(canvas.width * scale, canvas.height * scale);
-    return { material, mesh, map };
-  }
-
-  setModelCenter(object: any, viewControl: any) {
-    if (!object) {
-      return;
-    }
-    if (object.updateMatrixWorld) {
-      object.updateMatrixWorld();
-    }
-
-    // const box = new Box3().setFromObject(object); // 获取模型的包围盒
-    //     const size = box.getSize(new Vector3());
-    //     const pos = box.getCenter(new Vector3());
-    //     console.log("box", size, pos);
-    //     model.position.y = -pos.y;
-    //     const height = box.max.y;
-    //     const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-    //     console.log("1", model.position, "camera", pos.x, pos.y, dist * 1.5);
-    //     camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
-
-    // 获得包围盒得min和max
-    const box = new Box3().setFromObject(object);
-
-    let objSize = box.getSize(new Vector3());
-    // 返回包围盒的中心点
-    const center = box.getCenter(new Vector3());
-
-    object.position.x += object.position.x - center.x;
-    object.position.y += object.position.y - center.y;
-    object.position.z += object.position.z - center.z;
-
-    let width = objSize.x;
-    let height = objSize.y;
-    let depth = objSize.z;
-
-    let centroid = new Vector3().copy(objSize);
-    centroid.multiplyScalar(0.5);
-
-    if (viewControl.autoCamera) {
-      camera.position.x = centroid.x * (viewControl.centerX || 0) + width * (viewControl.width || 0);
-      camera.position.y = centroid.y * (viewControl.centerY || 0) + height * (viewControl.height || 0);
-      camera.position.z = centroid.z * (viewControl.centerZ || 0) + depth * (viewControl.depth || 0);
-    } else {
-      camera.position.set(viewControl.cameraPosX || 0, viewControl.cameraPosY || 0, viewControl.cameraPosZ || 0);
-    }
-
-    camera.lookAt(0, 0, 0);
-  }
+  //   let mesh: any = getCanvaMat(canvas, 0.02);
+  //   let s = latlngScale / sizeScale;
+  //   //注意canvas精灵的大小要保持比例
+  //   mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
+  //   let box: any = new Box3().setFromObject(mesh);
+  //   tooltip = mesh;
+  //   tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
+  //   scene.add(mesh);
+  // }
 
   // 控制波动
   addGui() {

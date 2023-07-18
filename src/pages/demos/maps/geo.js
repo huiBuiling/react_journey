@@ -130,37 +130,4 @@ const getGeoInfo = (geojson) => {
   return { bounding, centerM, scale };
 }
 
-
-/***
- * 获取渐变色数组
- * @param {string} startColor 开始颜色
- * @param {string} endColor  结束颜色
- * @param {number} step 颜色数量
- */
-const getGadientArray = (startColor, endColor, step) => {
-  let { red: startR, green: startG, blue: startB } = getColor(startColor);
-  let { red: endR, green: endG, blue: endB } = getColor(endColor);
-
-  let sR = (endR - startR) / step; //总差值
-  let sG = (endG - startG) / step;
-  let sB = (endB - startB) / step;
-  let colorArr = [];
-  for (let i = 0; i < step; i++) {
-    //计算每一步的hex值
-
-    let c =
-      'rgb(' +
-      parseInt(sR * i + startR) +
-      ',' +
-      parseInt(sG * i + startG) +
-      ',' +
-      parseInt(sB * i + startB) +
-      ')';
-    // console.log('%c' + c, 'background:' + c);
-
-    colorArr.push(c);
-  }
-  return colorArr;
-}
-
-export { queryGeojson, latlng2px, getGeoInfo, getGadientArray };
+export { queryGeojson, latlng2px, getGeoInfo };
