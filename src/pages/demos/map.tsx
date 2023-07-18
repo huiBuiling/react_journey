@@ -17,16 +17,22 @@ import {
   Shape,
   Vector3,
   WebGLRenderer,
+  Box3,
+  Raycaster,
+  Vector2,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
 import mapOption from "./maps/mapOption.js";
 import { getGadientArray, getCanvasText, getColor } from "./maps/utils";
-import { setModelCenter, getCanvaMat } from "./maps/threeUtil";
+import { setModelCenter, getCanvaMat, mouseClick, mouseHover } from "./maps/threeUtil";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any, gui: any;
+let raycaster: Raycaster, mouse_click, mouse_hover;
+
+// attr
 let options: any, geoJson: any, adcode: any, geoJson1: any, geoInfo: any;
 let bounding: any = {
   minlat: Number.MAX_VALUE,
@@ -37,10 +43,15 @@ let bounding: any = {
 let sizeScale: number = 1,
   latlngScale: number = 10,
   colorNum: number = 5;
-let activeRegionMat: any, mapGroup: Group, objGroup: Group;
-let actionElmts: any[]; // 收集动作元素
-let tooltip: any; // 提示
 let datas: any;
+let activeRegionMaterial: any, // 区块选中材质
+  mapGroup: Group, // 区块群组
+  objGroup: Group; // 整体对象群组
+let actionElmts: any[] = []; // 收集动作元素
+let regionsDatas: any[], // 上一次点击区块
+  beforeMaterial: any, // 上一次点击材质
+  activeObj: any, // 当前点击时选中对象
+  tooltip: any; // 提示
 /**
  * 3D区块地图
  * https://juejin.cn/post/7250375753598844983
@@ -84,10 +95,6 @@ export default class Map extends Component<IProps, IState> {
     scene.fog = new Fog(0x020924, 200, 1000);
     // 透视相机
     camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
-    camera.position.set(5, -20, 200);
-    // camera.position.set(-44.71, -173.71829664983076, 90.81687760650826);
-
-    camera.lookAt(0, 3, 0);
     scene.add(camera);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -100,13 +107,7 @@ export default class Map extends Component<IProps, IState> {
     //   console.log(`output->change`, camera.position);
     // });
 
-    // camera.position.x = -45.17972180789299;
-    // camera.position.y = 191.26308250679668;
-    // camera.position.z = 42.45263251389207;
-
-    // camera.position.x = -71.68;
-    // camera.position.y = 303.47;
-    // camera.position.z = 67.358;
+    raycaster = new Raycaster();
 
     //事件监听
     window.addEventListener("resize", () => this.onWindowResize(), false);
@@ -115,6 +116,14 @@ export default class Map extends Component<IProps, IState> {
 
     this.createChart(mapOption);
   };
+
+  // 配置射线碰撞检测：鼠标点击，鼠标移入
+  initRaycaster() {
+    mouse_click = new Vector2();
+    mouse_hover = new Vector2();
+    // mouseHover(container, mouse_click, raycaster, camera, this.doMouseAction(false));
+    mouseClick(container, mouse_hover, raycaster, camera, () => this.doMouseAction(true));
+  }
 
   /**
    * 画有热力的3D区块
@@ -174,7 +183,8 @@ export default class Map extends Component<IProps, IState> {
     }
     //生成热力颜色列表
     const _cdata = getColor(options.regionStyle.emphasisColor);
-    activeRegionMat = new MeshBasicMaterial({
+    // 区块被时的选中材质
+    activeRegionMaterial = new MeshBasicMaterial({
       color: new Color(_cdata.result),
       // color: _cdata.result,
       transparent: true,
@@ -226,6 +236,8 @@ export default class Map extends Component<IProps, IState> {
         regionIdx,
         idx,
       };
+
+      // 生成区块
       //多区块的行政区
       if (a.geometry.type == "MultiPolygon") {
         a.geometry.coordinates.forEach((b: any) => {
@@ -246,6 +258,9 @@ export default class Map extends Component<IProps, IState> {
     objGroup.add(mapGroup);
     scene.add(objGroup);
     setModelCenter(camera, objGroup, options.viewControl);
+
+    // console.log("aaa", geoJson.features, "---bbbb--", actionElmts);
+    this.initRaycaster();
   }
 
   /**
@@ -270,6 +285,16 @@ export default class Map extends Component<IProps, IState> {
     idx: number;
     regionIdx: number;
   }) {
+    // console.log("op", {
+    //   c,
+    //   extrudeSettings,
+    //   lineM,
+    //   regionName,
+    //   regionColor,
+    //   idx,
+    //   regionIdx,
+    // });
+
     const shape: any = new Shape();
     const points = [];
 
@@ -296,10 +321,17 @@ export default class Map extends Component<IProps, IState> {
 
     const mesh: any = new Mesh(geometry, material);
     mesh.name = regionName;
-    mesh.IDX = regionIdx;
+    mesh.IDX = idx;
+    mesh.regionIdx = regionIdx;
     mesh.rotateX(Math.PI * 0.5);
-    // actionElmts.push(mesh);
-    actionElmts = [mesh];
+
+    // 将每一个区块的不同构成都添加
+    if (actionElmts.length > 0) {
+      actionElmts.push(mesh);
+    } else {
+      actionElmts = [mesh];
+    }
+
     //添加边框
     const lineGeo = new BufferGeometry().setFromPoints(points);
     const line = new Line(lineGeo, lineM);
@@ -310,6 +342,86 @@ export default class Map extends Component<IProps, IState> {
     group.name = "region-" + idx;
     group.add(mesh, line);
     mapGroup.add(group);
+  }
+
+  /**
+   * 4. 悬浮激活区块
+   * 存储原来的区块材质，赋值激活状态材质，还要根据悬浮区块计算位置与大小，显示提示文本
+   */
+  doMouseAction(isChange: boolean) {
+    // console.log("isChange", isChange, actionElmts);
+    const intersects = raycaster.intersectObjects(actionElmts, true);
+    let newActiveObj: any;
+    if (intersects.length > 0) {
+      newActiveObj = intersects[0].object;
+    }
+
+    if ((activeObj && newActiveObj && activeObj.name != newActiveObj.name) || (!activeObj && newActiveObj)) {
+      console.log("active", newActiveObj);
+      // 删除旧的提示文本
+      // if (tooltip) {
+      //   this.cleanObj(tooltip);
+      //   tooltip = null;
+      // }
+
+      /**
+       * 如果已经有点击过，就存在上一次点击的
+       * 区块对象和区块材质，需要遍历还原区块的材质
+       */
+      if (regionsDatas && beforeMaterial) {
+        regionsDatas.forEach((elmt: any) => {
+          elmt.material = beforeMaterial;
+        });
+      }
+      /**
+       * 存储当前点击对象区块材质
+       * 便于下一次点击时，恢复上一次材质
+       */
+      beforeMaterial = newActiveObj.material;
+
+      let regionIdx = newActiveObj.regionIdx;
+      let idx = newActiveObj.IDX;
+      let regionName = newActiveObj.name;
+
+      // 获取当前点击区块，区块可能由多个 mesh 构成，n > length > 1
+      let regions = actionElmts.filter((item) => item.name == newActiveObj.name);
+      console.log("regions", regions, newActiveObj);
+
+      // 将当前选中区块材质设置成 激活状态材质
+      if (regions?.length) {
+        let center = new Vector3();
+        console.log("activeRegionMaterial", activeRegionMaterial);
+        regions.forEach((elmt: any) => {
+          elmt.material = activeRegionMaterial;
+          elmt.updateMatrixWorld();
+          // let box = new Box3().setFromObject(elmt);
+          // let c = box.getCenter(new Vector3());
+          // center.x += c.x;
+          // center.y += c.y;
+          // center.z += c.z;
+        });
+        //计算中心点，创建提示文本
+        // center.x = center.x / regions.length;
+        // center.y = center.y / regions.length;
+        // center.z = center.z / regions.length;
+        // newActiveObj.updateMatrixWorld();
+        // let objBox = new Box3().setFromObject(newActiveObj);
+        // this.createToolTip(regionName, regionIdx, center, objBox.getSize());
+        // }
+        // 更新点击数据
+        regionsDatas = regions;
+        activeObj = newActiveObj;
+      }
+      //点击下钻
+      // if (isChange && newActiveObj && activeObj) {
+      //   let f = geoJson.features[activeObj.IDX];
+      //   console.log("datas", datas, f);
+      //   datas.adcode = f.properties.adcode;
+      //   datas.address = f.properties.name;
+      //   console.log("next region", datas.adcode);
+      //   this.createChart(datas);
+      // }
+    }
   }
 
   /**

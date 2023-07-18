@@ -6,6 +6,7 @@ import {
   Sprite,
   SpriteMaterial,
   Vector3,
+  Vector2,
 } from "three";
 
 /**
@@ -48,7 +49,7 @@ const setModelCenter = (camera, object, viewControl) => {
   } else {
     camera.position.set(viewControl.cameraPosX || 0, viewControl.cameraPosY || 0, viewControl.cameraPosZ || 0);
   }
-
+  camera.position.set(9.18, 24.09, 28.78); // 手动设置值
   camera.lookAt(0, 0, 0);
 }
 
@@ -76,7 +77,61 @@ const getCanvaMat = (canvas, scale = 0.1) => {
   return { material, mesh, map };
 }
 
+/**
+ * 鼠标点击
+ * @param {*} container 
+ * @param {*} mouse 
+ * @param {*} raycaster 
+ * @param {*} camera 
+ * @param {*} callback
+ */
+const mouseClick = (container, mouse, raycaster, camera, callback) => {
+  container.style.cursor = 'pointer';
+  window.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    console.log('click');
+
+    mouse.x =
+      ((event.offsetX - container.offsetLeft) / container.offsetWidth) * 2 - 1;
+    mouse.y =
+      -((event.offsetY - container.offsetTop) / container.offsetHeight) * 2 + 1;
+    let vector = new Vector3(mouse.x, mouse.y, 1).unproject(camera);
+
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+    raycaster.setFromCamera(mouse, camera);
+    // this.raycasterAction();
+    callback()
+  }, false);
+}
+
+/**
+ * 鼠标移入
+ * @param {*} container 
+ * @param {*} mouse 
+ * @param {*} raycaster 
+ * @param {*} camera 
+ * @param {*} callback
+ */
+const mouseHover = (container, mouse, raycaster, camera, callback) => {
+  this.container.addEventListener('pointermove', (event) => {
+    event.preventDefault();
+
+    mouse.x =
+      ((event.offsetX - container.offsetLeft) / container.offsetWidth) * 2 - 1;
+    mouse.y =
+      -((event.offsetY - container.offsetTop) / container.offsetHeight) * 2 + 1;
+    let vector = new Vector3(mouse.x, mouse.y, 1).unproject(camera);
+
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+    raycaster.setFromCamera(mouse, camera);
+    // this.mouseHoverAction();
+    callback()
+  });
+}
+
 export {
   setModelCenter,
-  getCanvaMat
+  getCanvaMat,
+  mouseClick,
+  mouseHover
 }

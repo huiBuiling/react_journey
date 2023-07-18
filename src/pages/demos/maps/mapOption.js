@@ -17,7 +17,7 @@ function getData(item) {
   return data;
 }
 let data = getData(mapJson);
-console.log(data);
+// console.log(data);
 export default {
   //文本提示样式
   tooltip: {
