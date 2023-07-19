@@ -20,13 +20,14 @@ import {
   Box3,
   Raycaster,
   Vector2,
+  CircleGeometry,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
 import mapOption from "./maps/mapOption.js";
 import { getGadientArray, getCanvasText, getColor } from "./maps/utils";
-import { setModelCenter, getCanvaMat, mouseClick, mouseHover, cleanObj } from "./maps/threeUtil";
+import { setModelCenter, getCanvaMat, mouseClick, mouseHover, cleanObj, setCircleMaterial } from "./maps/threeUtil";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any, gui: any;
@@ -51,18 +52,23 @@ let actionElmts: any[] = []; // 收集动作元素
 let regionsDatas: any[], // 上一次点击区块
   beforeMaterial: any, // 上一次点击材质
   activeObj: any, // 当前点击时选中对象
-  tooltip: any; // 提示
+  tooltip: any, // 提示
+  tooltip_mesh: any;
 
-let tooltip_mesh: any;
+let scatterGroup: any, circleGroup: any;
+
 /**
  * 3D区块地图
  * https://juejin.cn/post/7250375753598844983
  * https://www.jianshu.com/p/27dca8d1bb9b
+ * https://juejin.cn/post/7247027696822304827
  *
  * 波纹散点、渐变柱体、飞线、下钻上卷、视角适配
  *
  * d3-geo:https://github.com/d3/d3-geo
  * yarn add d3-geo colorname
+ *
+ * THREE.ExtrudeGeometry: 将shape从二维挤出成三维
  */
 interface IProps {}
 interface IState {
@@ -158,6 +164,30 @@ export default class Map extends Component<IProps, IState> {
 
     objGroup = new Group();
     this.loaderExturdeGeometry();
+
+    if (options.series && options.series.length > 0) {
+      // barGroup = new Group();
+      // linesGroup = new Group();
+      scatterGroup = new Group();
+      circleGroup = new Group();
+      for (let idx = 0; idx < options.series.length; idx++) {
+        let op = options.series[idx];
+
+        switch (op.type) {
+          case "bar3D":
+            break;
+          case "lines3D":
+            break;
+          case "scatter3D":
+            // 散点
+            this.createScatter(op, idx);
+            break;
+        }
+      }
+    }
+
+    objGroup.add(circleGroup);
+    objGroup.add(scatterGroup);
   }
 
   /**
@@ -265,6 +295,9 @@ export default class Map extends Component<IProps, IState> {
   /**
    * 3. 每个区块形状和线框
    * 区块形状使用的是Shape的ExtrudeGeometry，差不多就是有厚度的canvas图形
+   * ExtrudeGeometry:
+   *    - depth：图形挤出的深度，默认值为1
+   *    - bevelEnabled：对挤出的形状应用是否斜角，默认值为true
    * @param param0
    */
   createRegion({
@@ -425,8 +458,7 @@ export default class Map extends Component<IProps, IState> {
   }
 
   /**
-   * 点击区块
-   * 创建提示文本
+   * 5.点击区块 -> 创建提示文本
    */
   createToolTip(
     regionName: string,
@@ -471,6 +503,103 @@ export default class Map extends Component<IProps, IState> {
 
     tooltip_mesh.position.set(center.x, center.y + scale.y + box.getSize(new Vector3()).y, center.z);
     scene.add(tooltip_mesh);
+  }
+
+  /**
+   * 散点
+   * 1.热力散点
+   */
+  createScatter(op: any, idx: number) {
+    let min = op.data[0].value,
+      max = op.data[0].value;
+    op.data.forEach((item: any) => {
+      if (item.value < min) {
+        min = item.value;
+      }
+      if (item.value > max) {
+        max = item.value;
+      }
+    });
+
+    let len = max - min;
+    let unit = len / colorNum;
+
+    let size = op.itemStyle.maxRadius - op.itemStyle.minRadius || 1;
+    //热力颜色列表
+    let colorList = getGadientArray(op.itemStyle.colorList[0], op.itemStyle.colorList[1], colorNum);
+    for (let index = 0; index < op.data.length; index++) {
+      let item = op.data[index];
+      let pos = latlng2px([item.lng, item.lat]);
+      // 检查散点是否在范围内
+      if (this.checkBounding(pos)) {
+        //获取热力颜色
+        let cIdx = Math.floor((item.value - min) / unit);
+        cIdx = cIdx >= colorNum ? colorNum - 1 : cIdx;
+        let color = colorList[cIdx];
+        let c = getColor(color);
+        let _color = getColor(`rgba(${c.red},${c.green},${c.blue},${op.itemStyle.opacity})`);
+        const material = new MeshBasicMaterial({
+          color: _color.result,
+          transparent: true,
+          opacity: 0.01 * _color.alpha,
+          side: DoubleSide,
+        });
+
+        //获取散点大小
+        let r;
+        if (len == 0) {
+          r = op.itemStyle.minRadius * sizeScale;
+          console.log("000", op.itemStyle.minRadius, sizeScale, r);
+        } else {
+          r = ((item.value - min) / len) * size + op.itemStyle.minRadius;
+          r = r * sizeScale;
+          console.log("111", (item.value - min) / len, size, op.itemStyle.minRadius, r);
+        }
+        // 散点-> 中间部分
+        const _scale = 0.8;
+        let geometry = new CircleGeometry(r * _scale, 32);
+
+        let mesh = new Mesh(geometry, material);
+        mesh.name = "scatter-" + idx + "-" + index;
+
+        mesh.rotateX(0.5 * Math.PI);
+        mesh.position.set(pos[0], 0, pos[1]);
+        scatterGroup.add(mesh);
+        // 散点-> 波纹圈
+        if (op.itemStyle.isCircle) {
+          const { material: circleMaterial } = setCircleMaterial(op.itemStyle.maxRadius * 20, color);
+
+          let circle = new Mesh(new CircleGeometry(r * 2 * _scale, 20), circleMaterial);
+          circle.name = "circle" + idx + "-" + index;
+          circle.rotateX(0.5 * Math.PI);
+          circle.position.set(pos[0], 0, pos[1]);
+
+          circleGroup.add(circle);
+        }
+      }
+    }
+    scatterGroup.position.y = 0.1 * sizeScale;
+    if (op.itemStyle.isCircle) {
+      circleGroup.position.y = 0.1 * sizeScale;
+    }
+  }
+
+  /**
+   * 散点
+   * 2. 检查散点是否在范围内
+   * @param pos
+   * @returns
+   */
+  checkBounding(pos: any[]) {
+    if (
+      pos[0] >= bounding.minlng &&
+      pos[0] <= bounding.maxlng &&
+      pos[1] >= bounding.minlat &&
+      pos[1] <= bounding.maxlat
+    ) {
+      return true;
+    }
+    return false;
   }
 
   // 控制波动

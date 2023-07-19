@@ -7,8 +7,12 @@ import {
   SpriteMaterial,
   Vector3,
   Vector2,
-  Texture
+  Texture,
+  MeshBasicMaterial,
+  Color
 } from "three";
+import { getColor } from "./utils";
+
 
 /**
  * 生成地图居中显示
@@ -172,10 +176,67 @@ const cleanElmt = (obj) => {
   }
 }
 
+/**
+   * 散点
+   * 3. 封装圆形材质
+   * @param radius
+   * @param color
+   * @returns
+   */
+const setCircleMaterial = (radius, color) => {
+  const canvas = document.createElement("canvas");
+  canvas.height = radius * 3.1;
+  canvas.width = radius * 3.1;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = color;
+  // ctx.shadowBlur = radius * 0.1;
+  // ctx.shadowColor = color;
+
+  //画三个波纹圈
+  //外圈
+  ctx.lineWidth = radius * 0.2;
+  ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
+  ctx.beginPath();
+  ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.stroke();
+  //中圈
+  ctx.lineWidth = radius * 0.1;
+  ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
+  ctx.beginPath();
+  ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.3, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.stroke();
+  //内圈
+  ctx.lineWidth = radius * 0.05;
+  ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
+  ctx.beginPath();
+  ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.5, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.stroke();
+
+  const map = new CanvasTexture(canvas);
+  map.wrapS = RepeatWrapping;
+  map.wrapT = RepeatWrapping;
+  let res = getColor(color);
+  const material = new MeshBasicMaterial({
+    map: map,
+    transparent: true,
+    color: new Color(`rgb(${res.red},${res.green},${res.blue})`),
+    opacity: 1,
+    // depthTest: false,
+    side: DoubleSide,
+  });
+
+  return { material, canvas };
+}
+
 export {
   setModelCenter,
   getCanvaMat,
   mouseClick,
   mouseHover,
-  cleanObj
+  cleanObj,
+  setCircleMaterial
 }
