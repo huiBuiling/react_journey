@@ -26,7 +26,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
 import mapOption from "./maps/mapOption.js";
 import { getGadientArray, getCanvasText, getColor } from "./maps/utils";
-import { setModelCenter, getCanvaMat, mouseClick, mouseHover } from "./maps/threeUtil";
+import { setModelCenter, getCanvaMat, mouseClick, mouseHover, cleanObj } from "./maps/threeUtil";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any, gui: any;
@@ -52,6 +52,8 @@ let regionsDatas: any[], // 上一次点击区块
   beforeMaterial: any, // 上一次点击材质
   activeObj: any, // 当前点击时选中对象
   tooltip: any; // 提示
+
+let tooltip_mesh: any;
 /**
  * 3D区块地图
  * https://juejin.cn/post/7250375753598844983
@@ -356,10 +358,10 @@ export default class Map extends Component<IProps, IState> {
     // 判断是否点击和上一次 区块 是否不相同
     if ((activeObj && newActiveObj && activeObj.name != newActiveObj.name) || (!activeObj && newActiveObj)) {
       // 删除上一次的提示文本
-      // if (tooltip) {
-      //   this.cleanObj(tooltip);
-      //   tooltip = null;
-      // }
+      if (tooltip) {
+        cleanObj(tooltip);
+        tooltip = null;
+      }
 
       /**
        * 如果已经有点击过，就存在上一次点击的
@@ -376,49 +378,50 @@ export default class Map extends Component<IProps, IState> {
        */
       beforeMaterial = newActiveObj.material;
 
-      let regionIdx = newActiveObj.regionIdx;
-      let idx = newActiveObj.IDX;
-      let regionName = newActiveObj.name;
-
       // 获取当前点击区块，区块可能由多个 mesh 构成，n > length > 1
       let regions = actionElmts.filter((item) => item.name == newActiveObj.name);
-      // 将当前选中区块材质设置成 激活状态材质
+
       if (regions?.length) {
         let center = new Vector3();
         regions.forEach((elmt: any) => {
+          // 将当前选中区块材质设置成 激活状态材质
           elmt.material = activeRegionMaterial;
           elmt.updateMatrixWorld();
-          // let box = new Box3().setFromObject(elmt);
-          // let c = box.getCenter(new Vector3());
-          // center.x += c.x;
-          // center.y += c.y;
-          // center.z += c.z;
+
+          // 跟随区块位置显示
+          const box = new Box3().setFromObject(elmt);
+          const c = box.getCenter(new Vector3());
+          center.x += c.x;
+          center.y += c.y;
+          center.z += c.z;
+          console.log("center", center);
         });
 
-        //计算中心点，创建提示文本
-        // center.x = center.x / regions.length;
-        // center.y = center.y / regions.length;
-        // center.z = center.z / regions.length;
-        // newActiveObj.updateMatrixWorld();
-        // let objBox = new Box3().setFromObject(newActiveObj);
-        // this.createToolTip(regionName, regionIdx, center, objBox.getSize());
-        // }
+        // 计算中心点，创建提示文本
+        center.x = center.x / regions.length;
+        center.y = center.y / regions.length;
+        center.z = center.z / regions.length;
+        newActiveObj.updateMatrixWorld();
+        const objBox = new Box3().setFromObject(newActiveObj);
 
-        // 更新点击数据
-        regionsDatas = regions; // 当前选中总区块 length > 1
-        activeObj = newActiveObj; // 当前点击选中块 length = 1
+        // const idx = newActiveObj.IDX;
+        this.createToolTip(newActiveObj.name, newActiveObj.regionIdx, center, objBox.getSize(new Vector3()));
       }
 
-      // 选中区块高度降低，显示为下降状态
-      // console.log("geoJson.features", geoJson.features, datas);
-      // if (isChange && newActiveObj && activeObj) {
-      //   let f = geoJson.features[activeObj.IDX];
-      //   console.log("datas", datas, f);
-      //   datas.adcode = f.properties.adcode;
-      //   datas.address = f.properties.name;
-      //   this.createChart(datas);
-      // }
+      // 更新点击数据
+      regionsDatas = regions; // 当前选中总区块 length > 1
+      activeObj = newActiveObj; // 当前点击选中块 length = 1
     }
+
+    // 选中区块高度降低，显示为下降状态
+    // console.log("geoJson.features", geoJson.features, datas);
+    // if (isChange && newActiveObj && activeObj) {
+    //   let f = geoJson.features[activeObj.IDX];
+    //   console.log("datas", datas, f);
+    //   datas.adcode = f.properties.adcode;
+    //   datas.address = f.properties.name;
+    //   this.createChart(datas);
+    // }
   }
 
   /**
@@ -435,6 +438,7 @@ export default class Map extends Component<IProps, IState> {
     },
     scale: any
   ) {
+    console.log(regionName, regionIdx, center, scale);
     let op = datas;
     let text;
     let data;
@@ -453,25 +457,29 @@ export default class Map extends Component<IProps, IState> {
       text = text.replace("{value}", data.value);
     }
 
-    // 生成五倍（sizeScale）大小的canvas贴图，避免大小问题出现显示模糊
-    const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale, op.tooltip.color, op.tooltip.bg);
+    // 生成五倍（sizeScale）大小的canvas贴图，避免大小问题出现显示模糊 sizeScale
+    const canvas = getCanvasText(text, op.tooltip.fontSize * sizeScale - 5, op.tooltip.color, op.tooltip.bg);
     console.log(canvas.width, canvas.height);
 
-    let mesh: any = getCanvaMat(canvas, 0.02);
-    let s = latlngScale / sizeScale;
+    tooltip_mesh = getCanvaMat(canvas, 0.02)?.mesh;
+    // let s = latlngScale / sizeScale;
+    const _scale = 2;
     //注意canvas精灵的大小要保持比例
-    mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
-    let box: any = new Box3().setFromObject(mesh);
-    tooltip = mesh;
-    tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
-    scene.add(mesh);
+    tooltip_mesh.scale.set(canvas.width * 0.01 * _scale, canvas.height * 0.01 * _scale);
+    let box: any = new Box3().setFromObject(tooltip_mesh);
+    tooltip = tooltip_mesh;
+
+    tooltip_mesh.position.set(center.x, center.y + scale.y + box.getSize(new Vector3()).y, center.z);
+    scene.add(tooltip_mesh);
   }
 
   // 控制波动
   addGui() {
-    // gui.add(earthPoints.position, "x").min(-800).max(800).step(1).name("x");
-    // gui.add(earthPoints.position, "y").min(-800).max(800).step(1).name("y");
-    // gui.add(earthPoints.position, "z").min(-800).max(800).step(1).name("z");
+    if (tooltip_mesh) {
+      gui.add(tooltip_mesh.position, "x").min(-80).max(80).step(1).name("x");
+      gui.add(tooltip_mesh.position, "y").min(-80).max(80).step(1).name("y");
+      gui.add(tooltip_mesh.position, "z").min(-80).max(80).step(1).name("z");
+    }
   }
 
   // 添加监听

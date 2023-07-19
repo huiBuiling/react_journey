@@ -7,6 +7,7 @@ import {
   SpriteMaterial,
   Vector3,
   Vector2,
+  Texture
 } from "three";
 
 /**
@@ -129,9 +130,52 @@ const mouseHover = (container, mouse, raycaster, camera, callback) => {
   });
 }
 
+/**
+ * 清楚对象
+ */
+const cleanObj = (obj) => {
+  cleanElmt(obj);
+  obj?.parent?.remove && obj.parent.remove(obj);
+}
+
+
+/**
+ * 清除对象
+ */
+const cleanElmt = (obj) => {
+  if (obj) {
+    if (obj.children && obj.children.length > 0) {
+      this.cleanNext(obj, 0);
+      obj.remove(...obj.children);
+    }
+    if (obj.geometry) {
+      obj.geometry.dispose && obj.geometry.dispose();
+    }
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m) => {
+          this.cleanElmt(m);
+        });
+      } else {
+        for (const v of Object.values(obj.material)) {
+          if (v instanceof Texture) {
+            v.dispose && v.dispose();
+          }
+        }
+
+        obj.material.dispose && obj.material.dispose();
+      }
+    }
+
+    obj.dispose && obj.dispose();
+    obj.clear && obj.clear();
+  }
+}
+
 export {
   setModelCenter,
   getCanvaMat,
   mouseClick,
-  mouseHover
+  mouseHover,
+  cleanObj
 }

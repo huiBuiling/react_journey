@@ -247,8 +247,8 @@ export function getCanvasTextArray(textList, fontSize) {
  * @returns
  */
 export function getCanvasText(text, fontSize, color, bg) {
-  if (fontSize < 30) {
-    fontSize = 30;
+  if (fontSize < 28) {
+    fontSize = 28;
   }
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
