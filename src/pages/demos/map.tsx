@@ -713,7 +713,7 @@ export default class Map extends Component<IProps, IState> {
       if (lineTime >= 1.0) {
         lineTime = 0.0;
       } else {
-        lineTime += 0.005;
+        lineTime += 0.001;
       }
       linesMaterial.forEach((m) => {
         m.uniforms.time.value = lineTime;
