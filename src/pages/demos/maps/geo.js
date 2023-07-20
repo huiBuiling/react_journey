@@ -31,9 +31,13 @@ const queryGeojson = (adcode, isFull = true) => {
 };
 
 /**
+ * 参考文档: https://blog.csdn.net/ImagineCode/article/details/105808522
+ * 
  * 经纬度转墨卡托投影
- * 这里使用的是d3geo,有一些Geojson不走经纬度的标准
- * 直接是墨卡托投影坐标，所以需要判断一下，在经纬度范围才对它进行墨卡托投影坐标转换
+ * 由于 GeoJSON 文件中的地图数据，都是经度和纬度的信息
+ * 它们都是三维的，而要在网页上显示的是二维的，所以要设定一个投影函数来转换经度纬度
+ * 
+ * 在经纬度范围进行墨卡托投影坐标转换
  */
 let geoFun = geoMercator().scale(180);
 const latlng2px = (pos) => {

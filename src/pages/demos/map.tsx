@@ -510,6 +510,7 @@ export default class Map extends Component<IProps, IState> {
    * 1.热力散点
    */
   createScatter(op: any, idx: number) {
+    console.log("op", op);
     let min = op.data[0].value,
       max = op.data[0].value;
     op.data.forEach((item: any) => {
@@ -525,14 +526,14 @@ export default class Map extends Component<IProps, IState> {
     let unit = len / colorNum;
 
     let size = op.itemStyle.maxRadius - op.itemStyle.minRadius || 1;
-    //热力颜色列表
+    // 热力颜色列表
     let colorList = getGadientArray(op.itemStyle.colorList[0], op.itemStyle.colorList[1], colorNum);
     for (let index = 0; index < op.data.length; index++) {
       let item = op.data[index];
       let pos = latlng2px([item.lng, item.lat]);
       // 检查散点是否在范围内
       if (this.checkBounding(pos)) {
-        //获取热力颜色
+        // 获取热力颜色
         let cIdx = Math.floor((item.value - min) / unit);
         cIdx = cIdx >= colorNum ? colorNum - 1 : cIdx;
         let color = colorList[cIdx];
@@ -545,18 +546,22 @@ export default class Map extends Component<IProps, IState> {
           side: DoubleSide,
         });
 
-        //获取散点大小
+        // 获取散点大小
         let r;
         if (len == 0) {
           r = op.itemStyle.minRadius * sizeScale;
-          console.log("000", op.itemStyle.minRadius, sizeScale, r);
+          console.log("0", r);
         } else {
           r = ((item.value - min) / len) * size + op.itemStyle.minRadius;
-          r = r * sizeScale;
-          console.log("111", (item.value - min) / len, size, op.itemStyle.minRadius, r);
+          console.log("10", r);
+          // r = r * sizeScale;
+        }
+
+        if (r > 4) {
+          r -= 1.89;
         }
         // 散点-> 中间部分
-        const _scale = 0.8;
+        const _scale = 0.18;
         let geometry = new CircleGeometry(r * _scale, 32);
 
         let mesh = new Mesh(geometry, material);
@@ -569,7 +574,7 @@ export default class Map extends Component<IProps, IState> {
         if (op.itemStyle.isCircle) {
           const { material: circleMaterial } = setCircleMaterial(op.itemStyle.maxRadius * 20, color);
 
-          let circle = new Mesh(new CircleGeometry(r * 2 * _scale, 20), circleMaterial);
+          let circle = new Mesh(new CircleGeometry(r * 2 * _scale, 32), circleMaterial);
           circle.name = "circle" + idx + "-" + index;
           circle.rotateX(0.5 * Math.PI);
           circle.position.set(pos[0], 0, pos[1]);
@@ -623,7 +628,24 @@ export default class Map extends Component<IProps, IState> {
   }
 
   animation() {
-    // TWEEN.update(); // !!!
+    //散点波纹扩散
+    if (circleGroup?.children?.length > 0) {
+      let circleScale = 1;
+      circleGroup.children.forEach((elmt: any) => {
+        if (elmt.material.opacity <= 0) {
+          elmt.material.opacity = 1;
+          circleScale = 1;
+        } else {
+          //大小变大，透明度减小
+          elmt.material.opacity += -0.01;
+          circleScale += 0.0002;
+        }
+        elmt.scale.x = circleScale;
+        elmt.scale.y = circleScale;
+      });
+    }
+
+    //
     controls.update();
     // 页面重绘时调用自身
     requestAnimationFrame(this.animation.bind(this));

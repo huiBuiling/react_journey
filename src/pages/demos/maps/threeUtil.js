@@ -177,8 +177,7 @@ const cleanElmt = (obj) => {
 }
 
 /**
-   * 散点
-   * 3. 封装圆形材质
+   * 散点 -> 波纹散点圈
    * @param radius
    * @param color
    * @returns
