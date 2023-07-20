@@ -709,16 +709,16 @@ export default class Map extends Component<IProps, IState> {
     }
 
     //飞线颜色变化
-    // if (linesGroup?.children?.length > 0) {
-    //   if (lineTime >= 1.0) {
-    //     lineTime = 0.0;
-    //   } else {
-    //     lineTime += 0.005;
-    //   }
-    //   linesMaterial.forEach((m) => {
-    //     m.uniforms.time.value = lineTime;
-    //   });
-    // }
+    if (linesGroup?.children?.length > 0) {
+      if (lineTime >= 1.0) {
+        lineTime = 0.0;
+      } else {
+        lineTime += 0.005;
+      }
+      linesMaterial.forEach((m) => {
+        m.uniforms.time.value = lineTime;
+      });
+    }
 
     //
     controls.update();
