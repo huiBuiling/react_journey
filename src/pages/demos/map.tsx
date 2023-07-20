@@ -21,13 +21,18 @@ import {
   Raycaster,
   Vector2,
   CircleGeometry,
+  ShaderMaterial,
+  QuadraticBezierCurve3,
+  TubeGeometry,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { getGeoInfo, latlng2px, queryGeojson } from "./maps/geo";
 import mapOption from "./maps/mapOption.js";
-import { getGadientArray, getCanvasText, getColor } from "./maps/utils";
+import { getGadientArray, getCanvasText, getColor, getRgbColor } from "./maps/utils";
 import { setModelCenter, getCanvaMat, mouseClick, mouseHover, cleanObj, setCircleMaterial } from "./maps/threeUtil";
+import VertexShader from "./maps/vertex.glsl";
+import FragmentShader from "./maps/fragment.glsl";
 
 let container: any, scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: any;
 let controls: any, gui: any;
@@ -56,6 +61,10 @@ let regionsDatas: any[], // 上一次点击区块
   tooltip_mesh: any;
 
 let scatterGroup: any, circleGroup: any;
+
+let linesMaterial: any[] = [], // 飞线材质数组，主要区分颜色
+  linesGroup: any,
+  lineTime = 0;
 
 /**
  * 3D区块地图
@@ -167,7 +176,7 @@ export default class Map extends Component<IProps, IState> {
 
     if (options.series && options.series.length > 0) {
       // barGroup = new Group();
-      // linesGroup = new Group();
+      linesGroup = new Group();
       scatterGroup = new Group();
       circleGroup = new Group();
       for (let idx = 0; idx < options.series.length; idx++) {
@@ -177,6 +186,7 @@ export default class Map extends Component<IProps, IState> {
           case "bar3D":
             break;
           case "lines3D":
+            this.createLines(op, idx);
             break;
           case "scatter3D":
             // 散点
@@ -188,6 +198,7 @@ export default class Map extends Component<IProps, IState> {
 
     objGroup.add(circleGroup);
     objGroup.add(scatterGroup);
+    objGroup.add(linesGroup);
   }
 
   /**
@@ -607,6 +618,58 @@ export default class Map extends Component<IProps, IState> {
     return false;
   }
 
+  /**
+   * 创建飞线
+   * 飞线管道: 使用' QuadraticBezierCurve3' 贝塞尔曲线算出来
+   */
+  createLines(op: any, idx: number) {
+    // const material = new MeshBasicMaterial({ color: 0x00ff00 });
+    const material = new ShaderMaterial({
+      vertexShader: VertexShader,
+      fragmentShader: FragmentShader,
+      side: DoubleSide,
+      transparent: true,
+      uniforms: {
+        time: {
+          value: 0,
+        },
+        // colorA: { value: new Color(getRgbColor(op.itemStyle.color)) },
+        // colorB: { value: new Color(getRgbColor(op.itemStyle.runColor)) },
+        colorB: { value: new Color("#E54674") },
+        colorA: { value: new Color("#16BDFF") },
+      },
+    });
+    if (linesMaterial?.length > 0) {
+      linesMaterial = [material];
+    } else {
+      linesMaterial.push(material);
+    }
+
+    for (let index = 0; index < op.data.length; index++) {
+      let item = op.data[index];
+
+      let pos = latlng2px([item.fromlng, item.fromlat]);
+      let pos2 = latlng2px([item.tolng, item.tolat]);
+      //过滤飞线范围
+      if (this.checkBounding(pos) && this.checkBounding(pos2)) {
+        //中间点
+        let pos1 = latlng2px([(item.fromlng + item.tolng) / 2, (item.fromlat + item.tolat) / 2]);
+        //贝塞尔曲线
+        const curve = new QuadraticBezierCurve3(
+          new Vector3(pos[0], 0, pos[1]),
+          new Vector3(pos1[0], op.itemStyle.lineHeight * sizeScale, pos1[1]),
+          new Vector3(pos2[0], 0, pos2[1])
+        );
+
+        const geometry = new TubeGeometry(curve, 32, op.itemStyle.lineWidth * sizeScale, 8, false);
+
+        const line = new Mesh(geometry, material);
+        line.name = "lines-" + idx + "-" + index;
+        linesGroup.add(line);
+      }
+    }
+  }
+
   // 控制波动
   addGui() {
     if (tooltip_mesh) {
@@ -644,6 +707,18 @@ export default class Map extends Component<IProps, IState> {
         elmt.scale.y = circleScale;
       });
     }
+
+    //飞线颜色变化
+    // if (linesGroup?.children?.length > 0) {
+    //   if (lineTime >= 1.0) {
+    //     lineTime = 0.0;
+    //   } else {
+    //     lineTime += 0.005;
+    //   }
+    //   linesMaterial.forEach((m) => {
+    //     m.uniforms.time.value = lineTime;
+    //   });
+    // }
 
     //
     controls.update();
