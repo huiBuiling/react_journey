@@ -4,7 +4,6 @@ import * as dat from "lil-gui";
 import {
   // VertexColors,
   AdditiveBlending,
-  AmbientLight,
   BufferGeometry,
   Clock,
   Color,
@@ -12,7 +11,6 @@ import {
   Float32BufferAttribute,
   Fog,
   Group,
-  HemisphereLight,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
@@ -32,7 +30,12 @@ import {
   WebGLRenderer,
   PCFShadowMap,
   DirectionalLight,
+  DirectionalLightHelper,
   PointLight,
+  PointLightHelper,
+  HemisphereLight,
+  HemisphereLightHelper,
+  AmbientLight,
 } from "three";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -49,6 +52,13 @@ let satelliteGroup: any,
   radius: number = 5,
   groupDots: any;
 let PiontAnimationArr: any[];
+
+// 灯光
+let directionalLight: DirectionalLight,
+  pointLight: PointLight,
+  hemisphereLight: HemisphereLight,
+  ambientLight: AmbientLight;
+
 /**
  * 地球
  * https://www.yii666.com/blog/345973.html
@@ -98,26 +108,27 @@ export default class Particl extends Component<IProps, IState> {
     render2d.domElement.style.top = "0px";
     render2d.domElement.tabIndex = 0;
     render2d.domElement.className = "CSSRender2d";
+    container.appendChild(render2d.domElement);
   }
 
   // 初始化控制器
   initControls() {
     // !注意：使用的是 render2d
-    // const controlConfig = {
-    //   minZoom: ,
-    //   maxZoom: ,
-    //   minPolarAngle: ,
-    //   maxPolarAngle: ,
-    // }
+    const controlConfig = {
+      minZoom: 0.5,
+      maxZoom: 2,
+      minPolarAngle: 0,
+      maxPolarAngle: Math.PI / 2,
+    };
     controls = new OrbitControls(camera, render2d.domElement);
-    controls.addEventListener("change", () => {
-      console.log(`output->change`, camera.position);
-    });
+    // controls.addEventListener("change", () => {
+    //   console.log(`output->change`, camera.position);
+    // });
 
-    // controls.minZoom = controlConfig.minZoom;
-    // controls.maxZoom = controlConfig.maxZoom;
-    // controls.minPolarAngle = controlConfig.minPolarAngle;
-    // controls.maxPolarAngle = controlConfig.maxPolarAngle;
+    controls.minZoom = controlConfig.minZoom;
+    controls.maxZoom = controlConfig.maxZoom;
+    controls.minPolarAngle = controlConfig.minPolarAngle;
+    controls.maxPolarAngle = controlConfig.maxPolarAngle;
   }
 
   init = () => {
@@ -129,23 +140,66 @@ export default class Particl extends Component<IProps, IState> {
     // 生成场景
     scene = new Scene();
     scene.background = new Color(0x020924);
-    // scene.fog = new Fog(0x020924, 200, 1000);
+    scene.fog = new Fog(0x020924, 200, 1000);
+
     // 透视相机
     camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
-    camera.position.set(30, 26, 10);
+    camera.position.set(50, 26, 10);
     scene.add(camera);
 
     // let gui = new dat.GUI();
     this.initControls();
-    this.initLight();
+
     this.addEventFun();
 
     textureLoader = new TextureLoader();
     //
+    // this.initPoint();
     this.initEarth();
 
-    //
+    this.initLight();
+    this.addGui();
   };
+
+  /**
+   * 星空背景
+   */
+  initPoint() {
+    const positions = [];
+    const colors = [];
+    const geometry = new BufferGeometry();
+    for (var i = 0; i < 10000; i++) {
+      var vertex = new Vector3();
+      vertex.x = Math.random() * 2 - 1;
+      vertex.y = Math.random() * 2 - 1;
+      vertex.z = Math.random() * 2 - 1;
+      positions.push(vertex.x, vertex.y, vertex.z);
+      var color = new Color();
+      color.setHSL(Math.random() * 0.2 + 0.5, 0.55, Math.random() * 0.25 + 0.55);
+      colors.push(color.r, color.g, color.b);
+    }
+    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+
+    const texture = textureLoader.load(`/textures/other/gradient.png`, (texture) => {
+      texture.encoding = sRGBEncoding;
+      texture.flipY = false;
+    });
+
+    const starsMaterial = new PointsMaterial({
+      map: texture,
+      size: 1,
+      transparent: true,
+      opacity: 1,
+      vertexColors: true, //true：且该几何体的colors属性有值，则该粒子会舍弃第一个属性--color，而应用该几何体的colors属性的颜色
+      blending: AdditiveBlending,
+      sizeAttenuation: true,
+    });
+
+    let stars = new Points(geometry, starsMaterial);
+    stars.scale.set(300, 300, 300);
+    scene.add(stars);
+  }
 
   /**
    * 添加圆形几何体对象
@@ -153,11 +207,11 @@ export default class Particl extends Component<IProps, IState> {
    */
   initEarth() {
     const _texture = textureLoader.load("/textures/3dmap/earth.png");
-    const earthGgeometry = new SphereGeometry(50, 100, 100);
-    const earthMaterial = new MeshBasicMaterial({
+    const earthGgeometry = new SphereGeometry(14, 100, 100);
+    const earthMaterial = new MeshLambertMaterial({
       map: _texture,
-      color: new Color("#C70000"),
-      opacity: 1,
+      // color: new Color("#C70000"),
+      // opacity: 1,
     });
     const earthMesh = new Mesh(earthGgeometry, earthMaterial);
     scene.add(earthMesh);
@@ -172,23 +226,32 @@ export default class Particl extends Component<IProps, IState> {
    */
   initLight() {
     // 平行光
-    var directionalLight = new DirectionalLight(0x80b5ff, 1);
-    directionalLight.position.set(-250, 250, 100);
+    directionalLight = new DirectionalLight(0x80b5ff, 8);
+    directionalLight.position.set(-26, 249, 33);
     scene.add(directionalLight);
+    // 平行光助手
+    const directLH = new DirectionalLightHelper(directionalLight, 5);
+    scene.add(directLH);
 
-    // 点光
-    var pointLight = new PointLight(0x80d4ff, 1);
-    pointLight.position.set(-250, 250, 100);
+    // 点光源
+    pointLight = new PointLight(0x80d4ff, 22);
+    pointLight.position.set(-105, -183, 151);
     scene.add(pointLight);
+    // 点光源助手
+    const pointLightHelper = new PointLightHelper(pointLight, 15);
+    scene.add(pointLightHelper);
 
     // 半球光
-    var hemisphereLight = new HemisphereLight(0xffffff, 0x3d6399, 1);
-    hemisphereLight.position.set(-250, 250, 100);
+    hemisphereLight = new HemisphereLight(0xffffff, 0x3d6399, 1.5);
+    hemisphereLight.position.set(300, -360, -518);
     scene.add(hemisphereLight);
+    // 半球光助手
+    const hemisLH = new HemisphereLightHelper(hemisphereLight, 15);
+    scene.add(hemisLH);
 
-    //环境光
-    var ambient = new AmbientLight(0x002bff, 0.8);
-    scene.add(ambient);
+    // 环境光
+    ambientLight = new AmbientLight(0x002bff, 0.8);
+    scene.add(ambientLight);
   }
 
   // 添加监听
@@ -199,10 +262,43 @@ export default class Particl extends Component<IProps, IState> {
 
   // 控制波动
   addGui() {
-    // let gui = new dat.GUI();
-    // gui.add(earthPoints.position, "x").min(-800).max(800).step(1).name("x");
-    // gui.add(earthPoints.position, "y").min(-800).max(800).step(1).name("y");
-    // gui.add(earthPoints.position, "z").min(-800).max(800).step(1).name("z");
+    let gui = new dat.GUI();
+    let cameraFolder = gui.addFolder("相机");
+    cameraFolder.add(camera.position, "x").min(-800).max(800).step(1).name("x");
+    cameraFolder.add(camera.position, "y").min(-800).max(800).step(1).name("y");
+    cameraFolder.add(camera.position, "z").min(-800).max(800).step(1).name("z");
+
+    let lightFolder = gui.addFolder("灯光");
+    // 平行光
+    lightFolder.add(directionalLight.position, "x").min(-800).max(800).step(1).name("平行光_x");
+    lightFolder.add(directionalLight.position, "y").min(-800).max(800).step(1).name("平行光_y");
+    lightFolder.add(directionalLight.position, "z").min(-800).max(800).step(1).name("平行光_z");
+    lightFolder.add(directionalLight, "intensity").min(0).max(80).step(1).name("平行光_强度");
+    //添加gui颜色控件按钮
+    lightFolder.addColor(directionalLight, "color").onChange((val: any) => {
+      directionalLight.color = new Color(val);
+      console.log("directionalLight", directionalLight);
+    });
+    // 点光源
+    lightFolder.add(pointLight.position, "x").min(-800).max(800).step(1).name("点光源_x");
+    lightFolder.add(pointLight.position, "y").min(-800).max(800).step(1).name("点光源_y");
+    lightFolder.add(pointLight.position, "z").min(-800).max(800).step(1).name("点光源_z");
+    lightFolder.add(pointLight, "intensity").min(0).max(80).step(1).name("点光源_强度");
+    //添加gui颜色控件按钮
+    lightFolder.addColor(pointLight, "color").onChange((val: any) => {
+      pointLight.color = new Color(val);
+      console.log("pointLight", pointLight);
+    });
+    // 半球光
+    lightFolder.add(hemisphereLight.position, "x").min(-800).max(800).step(1).name("半球光_x");
+    lightFolder.add(hemisphereLight.position, "y").min(-800).max(800).step(1).name("半球光_y");
+    lightFolder.add(hemisphereLight.position, "z").min(-800).max(800).step(1).name("半球光_z");
+    lightFolder.add(hemisphereLight, "intensity").min(0).max(80).step(1).name("半球光_强度");
+    //添加gui颜色控件按钮
+    lightFolder.addColor(hemisphereLight, "color").onChange((val: any) => {
+      hemisphereLight.color = new Color(val);
+      console.log("hemisphereLight", hemisphereLight);
+    });
   }
 
   onWindowResize() {
