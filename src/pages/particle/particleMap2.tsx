@@ -2,33 +2,33 @@ import { Component } from "react";
 // import LegacyJSONLoader from "@/assets/particle/LegacyJSONLoader";
 import * as dat from "lil-gui";
 import {
+  WebGLRenderer,
+  PerspectiveCamera,
+  PCFShadowMap,
+  Clock,
+  Color,
+  Fog,
   // VertexColors,
   AdditiveBlending,
   BufferGeometry,
-  Clock,
-  Color,
   DoubleSide,
   Float32BufferAttribute,
-  Fog,
   Group,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
   MeshStandardMaterial,
-  PerspectiveCamera,
-  PlaneGeometry,
+  // 星空
   Points,
   PointsMaterial,
   Scene,
   SphereGeometry,
-  Spherical,
   Sprite,
   SpriteMaterial,
   sRGBEncoding,
   TextureLoader,
   Vector3,
-  WebGLRenderer,
-  PCFShadowMap,
+  // 灯光
   DirectionalLight,
   DirectionalLightHelper,
   PointLight,
@@ -36,10 +36,29 @@ import {
   HemisphereLight,
   HemisphereLightHelper,
   AmbientLight,
+  //  绘制世界轮廓
+  BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
+  // 标注
+  PlaneGeometry,
+  MathUtils,
+  Spherical,
+  // 线
+  ShaderMaterial,
+  QuadraticBezierCurve3,
+  TubeGeometry,
 } from "three";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import TWEEN from "@tweenjs/tween.js";
+import VertexShader from "./map/vertex.glsl";
+import FragmentShader from "./map/fragment.glsl";
 
+//引入国家边界数据
+import pointArr from "./map/world";
+
+//
 let container: any,
   scene: Scene,
   camera: PerspectiveCamera,
@@ -47,17 +66,65 @@ let container: any,
   render2d: CSS2DRenderer,
   clock: any;
 let controls: any;
-let group: Group, textureLoader: TextureLoader;
-let satelliteGroup: any,
-  radius: number = 5,
-  groupDots: any;
+let earthGroup: Group, group: Group, textureLoader: TextureLoader;
+
 let PiontAnimationArr: any[];
+
+let earthMesh: any; // 地图
+const radius = 14; // 圆半径
+let sprite: any, // 光晕对象
+  obj = {
+    scale: 3.928, // 光晕缩放
+  },
+  cityGroup: Group, // 城市数组
+  cityWaveMeshGroup: Mesh[] = []; // 波动圈数组
 
 // 灯光
 let directionalLight: DirectionalLight,
   pointLight: PointLight,
   hemisphereLight: HemisphereLight,
   ambientLight: AmbientLight;
+
+// 线
+let linesMaterial: ShaderMaterial[] = [];
+
+// 城市数据
+const cityList = [
+  {
+    name: "北京",
+    longitude: 116.3,
+    latitude: 39.9,
+  },
+  {
+    name: "上海",
+    longitude: 121,
+    latitude: 31.0,
+  },
+  {
+    name: "西安",
+    longitude: 108,
+    latitude: 34,
+  },
+  {
+    name: "成都",
+    longitude: 103,
+    latitude: 31,
+  },
+  { name: "乌鲁木齐", longitude: 87.0, latitude: 43.0 },
+  { name: "拉萨", longitude: 91.06, latitude: 29.36 },
+  { name: "广州", longitude: 113.0, latitude: 23.06 },
+  { name: "哈尔滨", longitude: 127.0, latitude: 45.5 },
+  { name: "沈阳", longitude: 123.43, latitude: 41.8 },
+  { name: "武汉", longitude: 114.0, latitude: 30.0 },
+  { name: "海口", longitude: 110.0, latitude: 20.03 },
+  { name: "纽约", longitude: -74.5, latitude: 40.5 },
+  { name: "伦敦", longitude: 0.1, latitude: 51.3 },
+  { name: "巴黎", longitude: 2.2, latitude: 48.5 },
+  { name: "开普敦", longitude: 18.25, latitude: -33.5 },
+  { name: "悉尼", longitude: 151.1, latitude: -33.51 },
+  { name: "东京", longitude: 139.69, latitude: 35.69 },
+  { name: "里约热内卢", longitude: -43.11, latitude: -22.54 },
+];
 
 /**
  * 地球
@@ -152,14 +219,78 @@ export default class Particl extends Component<IProps, IState> {
 
     this.addEventFun();
 
-    textureLoader = new TextureLoader();
-    //
-    // this.initPoint();
-    this.initEarth();
-
+    // 灯光
     this.initLight();
+
+    //
+    textureLoader = new TextureLoader();
+    earthGroup = new Group();
+    // 星空
+    // this.initPoint();
+    // 地球
+    this.initEarth();
+    // 绘制世界轮廓
+    this.drawOutline();
+    // 大气层光晕
+    this.initHALO(obj.scale);
+    // 云层
+    this.addEarthClouds();
+    // 标注
+    // const _data = this.lon2xyz(radius, 116.2, 39.55);
+    // console.log("_data", _data);
+    cityGroup = new Group();
+    cityGroup.renderOrder = 3;
+
+    earthGroup.add(cityGroup);
+    scene.add(earthGroup);
     this.addGui();
+
+    // 城市点位标注
+    cityList.forEach((item) => {
+      this.cityMark(this.lon2xyz(radius, item.longitude, item.latitude));
+    });
+
+    // 旋转地球到中国位置
+    this.positioningChina();
+
+    // 飞线
+    // this.addFlyLine();
+
+    console.log("cityWaveMeshGroup", cityWaveMeshGroup);
   };
+
+  /**
+   * 定位到中国位置显示
+   * 旋转地球到中国位置, 且放大
+   */
+  positioningChina() {
+    const startRotateY = (3.15 * Math.PI) / 2;
+    const startZoom = -18;
+    const endRotateY = 3.3 * Math.PI;
+    const endZoom = 4;
+    const _anim = new TWEEN.Tween({
+      rotateY: startRotateY,
+      zoom: startZoom,
+    })
+      .to({ rotateY: endRotateY, zoom: endZoom }, 3000) //.to({rotateY: endRotateY, zoom: endZoom}, 10000)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate(function (object: any) {
+        if (earthGroup) {
+          earthGroup.rotation.set(0, object.rotateY, 0);
+          _anim2.start(3200);
+        }
+      });
+
+    _anim.start();
+
+    const _anim2 = new TWEEN.Tween(earthGroup.scale)
+      .to({ x: 2, y: 2, z: 2 }, 5000) //.to({rotateY: endRotateY, zoom: endZoom}, 10000)
+      .easing(TWEEN.Easing.Quintic.Out)
+      .onUpdate(function (object: any) {
+        // TWEEN.remove(_anim);
+        // TWEEN.remove(_anim2);
+      });
+  }
 
   /**
    * 星空背景
@@ -207,14 +338,247 @@ export default class Particl extends Component<IProps, IState> {
    */
   initEarth() {
     const _texture = textureLoader.load("/textures/3dmap/earth.png");
-    const earthGgeometry = new SphereGeometry(14, 100, 100);
+    const earthGgeometry = new SphereGeometry(radius, 100, 100);
     const earthMaterial = new MeshLambertMaterial({
       map: _texture,
       // color: new Color("#C70000"),
       // opacity: 1,
     });
-    const earthMesh = new Mesh(earthGgeometry, earthMaterial);
-    scene.add(earthMesh);
+    earthMesh = new Mesh(earthGgeometry, earthMaterial);
+    earthMesh.renderOrder = 1;
+    earthGroup.add(earthMesh);
+    scene.add(earthGroup);
+  }
+
+  /**
+   * 绘制世界轮廓
+   * threejs 通过 LineLoop 和世界点数据，可以绘制多边形 -> 利用此原理绘制国家边界
+   *
+   * LineLoop和Line功能一样，区别在于首尾顶点相连，轮廓闭合，
+   * 但是绘制条数太多会用性能问题，LineSegments 是一条线绘制，提高性能，需要复制顶点
+   */
+  drawOutline() {
+    // 创建一个Buffer类型几何体对象
+    const geometry = new BufferGeometry();
+    // 类型数组创建顶点数据
+    const vertices = new Float32Array(pointArr);
+    // 创建属性缓冲区对象, 3个为一组，表示一个顶点的 xyz 坐标
+    const attribute = new BufferAttribute(vertices, 3);
+    // 设置几何体attributes属性的位置属性
+    geometry.attributes.position = attribute;
+    // 线条渲染几何体顶点数据, 材质对象
+    const material = new LineBasicMaterial({
+      color: 0x7aa5a5, //线条颜色
+      // color: 0xc90000,
+    });
+    let line = new LineSegments(geometry, material); //间隔绘制直线
+    const _radius = radius + 0.01;
+    line.scale.set(_radius, _radius, _radius); // 对应球面半径是1，需要缩放R倍
+    line.renderOrder = 2;
+    earthGroup.add(line);
+  }
+
+  /**
+   * 大气层光晕
+   */
+  initHALO(scale: number) {
+    const texture = textureLoader.load("/textures/other/aperture.jpg");
+    const spriteMaterial = new SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.23,
+      depthWrite: false,
+    });
+    sprite = new Sprite(spriteMaterial);
+    sprite.scale.set(radius * obj.scale, radius * obj.scale, 1);
+    scene.add(sprite);
+  }
+
+  /**
+   * 添加地球云层
+   */
+  addEarthClouds() {
+    const _texture = textureLoader.load("/textures/3dmap/earth_cloud.png");
+    const earthCludsGgeometry = new SphereGeometry(radius, 100, 100);
+    const earthCludsMaterial = new MeshLambertMaterial({
+      map: _texture,
+      transparent: true,
+      opacity: 0.67,
+      blending: AdditiveBlending,
+    });
+    const earthMesh = new Mesh(earthCludsGgeometry, earthCludsMaterial);
+    earthMesh.renderOrder = 2;
+    earthGroup.add(earthMesh);
+  }
+
+  /**
+   * 处理地理位置：经纬度转换
+   * 方法1 ---------------
+   */
+  lon2xyz(_radius: number, longitude: number, latitude: number) {
+    // fun1
+    // let long = (longitude * Math.PI) / 180; //转弧度值
+    // const lat = (latitude * Math.PI) / 180; //转弧度值
+
+    // fun2
+    let long = MathUtils.degToRad(longitude);
+    const lat = MathUtils.degToRad(latitude); // 获取x，y，z坐标
+
+    long = -long; // three.js坐标系z坐标轴对应经度-90度，而不是90度
+    // 经纬度坐标转球面坐标计算公式
+    const x = _radius * Math.cos(lat) * Math.cos(long);
+    const y = _radius * Math.sin(lat);
+    const z = _radius * Math.cos(lat) * Math.sin(long);
+    // 返回球面坐标
+    return {
+      x: x,
+      y: y,
+      z: z,
+    };
+  }
+
+  // 处理地理位置：经纬度转换 -> 有问题
+  lglt2xyz(lng: number, lat: number) {
+    const theta = (90 + lng) * (Math.PI / 180);
+    const phi = (90 - lat) * (Math.PI / 180);
+    return new Vector3().setFromSpherical(new Spherical(radius, phi, theta));
+  }
+
+  /**
+   * 城市位置标注
+   * PlaneBufferGeometry：已废弃
+   */
+  cityMark(data: { x: number; y: number; z: number }) {
+    const cityGeometry = new PlaneGeometry(1, 1); // 默认在XOY平面上
+
+    // 城市点添加 -> 黄圈点
+    // const _pointTexure = textureLoader.load("/textures/3dmap/point.png");
+    const _pointTexure = textureLoader.load("/textures/other/dian.png");
+    const cityPointMaterial = new MeshBasicMaterial({
+      color: 0xffc300,
+      map: _pointTexure,
+      transparent: true,
+      depthWrite: false, // 禁止写入缓冲区数据
+    });
+    let cityMesh = new Mesh(cityGeometry, cityPointMaterial);
+    // // 设置 mesh 大小
+    const _size = radius * 0.04;
+    cityMesh.scale.set(_size, _size, _size);
+
+    // 光圈
+    const _texture = textureLoader.load("/textures/3dmap/wave.png");
+    // 如果不同mesh材质的透明度、颜色等属性同一时刻不同，材质不能共享
+    const cityWaveMaterial = new MeshBasicMaterial({
+      color: 0x22ffcc,
+      map: _texture,
+      transparent: true, // ！注意：使用背景透明的图片，开启透明计算
+      side: DoubleSide, // 双面可见
+      depthWrite: false, // 禁止写入深度缓冲数据
+    });
+    let cityWaveMesh: any = new Mesh(cityGeometry, cityWaveMaterial);
+    // 矩形平面Mesh的尺寸
+    const _size2 = radius * 0.08;
+    // 自定义属性: size，表示 mesh 静态大小
+    (cityWaveMesh as any).size = _size2;
+    // 设置mesh大小
+    cityWaveMesh.scale.set(_size2, _size2, _size2);
+    /**
+     * 自定义属性: _s
+     * 表示mesh在原始大小基础上放大倍数
+     * 光圈在原来mesh.size基础上1~2倍之间变化
+     */
+    cityWaveMesh._s = Math.random() * 1.0 + 1.0;
+
+    // 设置位置点
+    cityWaveMesh.position.set(data.x, data.y, data.z);
+    cityMesh.position.set(data.x, data.y, data.z);
+
+    this.setPointPosition(data, cityMesh, cityWaveMesh);
+
+    cityMesh.renderOrder = 3;
+    cityWaveMesh.renderOrder = 3;
+
+    cityGroup.add(cityMesh);
+    cityGroup.add(cityWaveMesh);
+    cityWaveMeshGroup.push(cityWaveMesh);
+  }
+
+  /**
+   * 地球上的点，贴合地图 
+   * 
+   * mesh 设置
+   * 1. mesh在球面上的法线方向(球心和球面坐标构成的方向向量)
+   * 2. mesh默认在XOY平面上，法线方向沿着z轴 new THREE.Vector3(0, 0, 1)
+   * 3. 四元数属性.quaternion表示mesh的角度状态
+          .setFromUnitVectors();计算两个向量之间构成的四元数值
+   */
+  setPointPosition(data: { x: number; y: number; z: number }, cityMesh: Mesh, cityWaveMesh: Mesh) {
+    const coordVec3 = new Vector3(data.x, data.y, data.z).normalize();
+    // console.log("coordVec3", data, coordVec3);
+    const meshNormal = new Vector3(0, 0, 1);
+    cityMesh.quaternion.setFromUnitVectors(meshNormal, coordVec3);
+    cityWaveMesh.quaternion.setFromUnitVectors(meshNormal, coordVec3);
+  }
+
+  /**
+   * 标注点涟漪动画
+   * 显示，逐渐放大，消失 -> 重复
+   */
+  cityWaveAnimate = (waveMeshArr: Mesh[]) => {
+    // 所有波动光圈都有自己的透明度和大小状态
+    // 一个波动光圈透明度变化过程是：0~1~0反复循环
+    waveMeshArr.forEach(function (mesh: any) {
+      mesh._s += 0.007;
+      mesh.scale.set(mesh.size * mesh._s, mesh.size * mesh._s, mesh.size * mesh._s);
+      // console.log("mesh._s", mesh._s, mesh.size * mesh._s);
+      if (mesh._s <= 1.5) {
+        mesh.material.opacity = (mesh._s - 1) * 2; //2等于1/(1.5-1.0)，保证透明度在0~1之间变化
+      } else if (mesh._s > 1.5 && mesh._s <= 2) {
+        mesh.material.opacity = 1 - (mesh._s - 1.5) * 2; //2等于1/(2.0-1.5) mesh缩放2倍对应0 缩放1.5被对应1
+      } else {
+        mesh._s = 1.0;
+      }
+    });
+  };
+
+  /**
+   * 添加点与点之间的飞线
+   */
+  addFlyLine() {
+    const material = new ShaderMaterial({
+      vertexShader: VertexShader,
+      fragmentShader: FragmentShader,
+      side: DoubleSide,
+      transparent: true,
+      uniforms: {
+        time: {
+          value: 0,
+        },
+        // colorA: { value: new Color(getRgbColor(op.itemStyle.color)) },
+        // colorB: { value: new Color(getRgbColor(op.itemStyle.runColor)) },
+        colorB: { value: new Color("#E54674") },
+        colorA: { value: new Color("#16BDFF") },
+      },
+    });
+    linesMaterial.push(material);
+
+    let pos = this.lon2xyz(radius, 116.3, 39.9);
+    let pos1 = this.lon2xyz(radius, 103, 31);
+    //过滤飞线范围
+    //贝塞尔曲线
+    const curve = new QuadraticBezierCurve3(
+      new Vector3(pos.x, 0, pos.x),
+      new Vector3(pos.y, 0, pos.y),
+      new Vector3(pos.z, 0, pos.z)
+    );
+
+    const geometry = new TubeGeometry(curve, 32, 5, 8, false);
+
+    const line = new Mesh(geometry, material);
+    console.log("line", line);
+    // line.name = "lines-" + idx + "-" + index;
+    // linesGroup.add(line);
+    earthGroup.add(line);
   }
 
   /**
@@ -234,7 +598,7 @@ export default class Particl extends Component<IProps, IState> {
     scene.add(directLH);
 
     // 点光源
-    pointLight = new PointLight(0x80d4ff, 22);
+    pointLight = new PointLight(0x11425a, 22);
     pointLight.position.set(-105, -183, 151);
     scene.add(pointLight);
     // 点光源助手
@@ -279,26 +643,38 @@ export default class Particl extends Component<IProps, IState> {
       directionalLight.color = new Color(val);
       console.log("directionalLight", directionalLight);
     });
-    // 点光源
-    lightFolder.add(pointLight.position, "x").min(-800).max(800).step(1).name("点光源_x");
-    lightFolder.add(pointLight.position, "y").min(-800).max(800).step(1).name("点光源_y");
-    lightFolder.add(pointLight.position, "z").min(-800).max(800).step(1).name("点光源_z");
-    lightFolder.add(pointLight, "intensity").min(0).max(80).step(1).name("点光源_强度");
-    //添加gui颜色控件按钮
-    lightFolder.addColor(pointLight, "color").onChange((val: any) => {
+
+    let lightFolder2 = gui.addFolder("点光源");
+    lightFolder2.add(pointLight.position, "x").min(-800).max(800).step(1).name("点光源_x");
+    lightFolder2.add(pointLight.position, "y").min(-800).max(800).step(1).name("点光源_y");
+    lightFolder2.add(pointLight.position, "z").min(-800).max(800).step(1).name("点光源_z");
+    lightFolder2.add(pointLight, "intensity").min(0).max(80).step(1).name("点光源_强度");
+    lightFolder2.addColor(pointLight, "color").onChange((val: any) => {
       pointLight.color = new Color(val);
       console.log("pointLight", pointLight);
     });
-    // 半球光
-    lightFolder.add(hemisphereLight.position, "x").min(-800).max(800).step(1).name("半球光_x");
-    lightFolder.add(hemisphereLight.position, "y").min(-800).max(800).step(1).name("半球光_y");
-    lightFolder.add(hemisphereLight.position, "z").min(-800).max(800).step(1).name("半球光_z");
-    lightFolder.add(hemisphereLight, "intensity").min(0).max(80).step(1).name("半球光_强度");
-    //添加gui颜色控件按钮
-    lightFolder.addColor(hemisphereLight, "color").onChange((val: any) => {
+
+    let lightFolder3 = gui.addFolder("半球光");
+    lightFolder3.add(hemisphereLight.position, "x").min(-800).max(800).step(1).name("半球光_x");
+    lightFolder3.add(hemisphereLight.position, "y").min(-800).max(800).step(1).name("半球光_y");
+    lightFolder3.add(hemisphereLight.position, "z").min(-800).max(800).step(1).name("半球光_z");
+    lightFolder3.add(hemisphereLight, "intensity").min(0).max(80).step(1).name("半球光_强度");
+    lightFolder3.addColor(hemisphereLight, "color").onChange((val: any) => {
       hemisphereLight.color = new Color(val);
       console.log("hemisphereLight", hemisphereLight);
     });
+
+    cameraFolder.close();
+    lightFolder.close();
+    lightFolder2.close();
+    lightFolder3.close();
+
+    let otherFolder = gui.addFolder("其他");
+    otherFolder.add(sprite.scale, "x").min(0).max(80).step(1).name("光晕缩放_x");
+    otherFolder.add(sprite.scale, "y").min(0).max(80).step(1).name("光晕缩放_y");
+    // otherFolder.add(cityWaveMesh.scale, "x").min(-800).max(800).step(1).name("标注_x");
+    // otherFolder.add(cityWaveMesh.scale, "y").min(-800).max(800).step(1).name("标注_y");
+    // otherFolder.add(cityWaveMesh.scale, "z").min(-800).max(800).step(1).name("标注_y");
   }
 
   onWindowResize() {
@@ -312,11 +688,11 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   animation() {
-    // TWEEN.update(); // !!!
+    TWEEN.update(); // !!!
 
     // 光圈标注动画
-    if (PiontAnimationArr?.length) {
-      // this.PiontAnimation();
+    if (cityWaveMeshGroup?.length) {
+      this.cityWaveAnimate(cityWaveMeshGroup);
     }
 
     controls.update();
