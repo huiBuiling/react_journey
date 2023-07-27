@@ -50,16 +50,17 @@ import {
   CubicBezierCurve3,
   TubeGeometry,
   Line,
+  LineDashedMaterial,
 } from "three";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import TWEEN from "@tweenjs/tween.js";
 import VertexShader from "./map/vertex.glsl";
 import FragmentShader from "./map/fragment.glsl";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 //引入国家边界数据
 import pointArr from "./map/world";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
 
 //
 let container: any,
@@ -89,30 +90,32 @@ let directionalLight: DirectionalLight,
   ambientLight: AmbientLight;
 
 // 线
+let linesMaterial: ShaderMaterial[] = [], // 飞线材质数组，主要区分颜色
+  linesGroup: any,
+  lineTime = 0;
 let line: any;
-let linesMaterial: ShaderMaterial[] = [];
 
 // 城市数据
-const cityList = [
-  { name: "北京", longitude: 116.3, latitude: 39.9 },
-  { name: "上海", longitude: 121, latitude: 31.0 },
-  { name: "西安", longitude: 108, latitude: 34 },
-  { name: "成都", longitude: 103, latitude: 31 },
-  { name: "乌鲁木齐", longitude: 87.0, latitude: 43.0 },
-  { name: "拉萨", longitude: 91.06, latitude: 29.36 },
-  { name: "广州", longitude: 113.0, latitude: 23.06 },
-  { name: "哈尔滨", longitude: 127.0, latitude: 45.5 },
-  { name: "沈阳", longitude: 123.43, latitude: 41.8 },
-  { name: "武汉", longitude: 114.0, latitude: 30.0 },
-  { name: "海口", longitude: 110.0, latitude: 20.03 },
-  { name: "纽约", longitude: -74.5, latitude: 40.5 },
-  { name: "伦敦", longitude: 0.1, latitude: 51.3 },
-  { name: "巴黎", longitude: 2.2, latitude: 48.5 },
-  { name: "开普敦", longitude: 18.25, latitude: -33.5 },
-  { name: "悉尼", longitude: 151.1, latitude: -33.51 },
-  { name: "东京", longitude: 139.69, latitude: 35.69 },
-  { name: "里约热内卢", longitude: -43.11, latitude: -22.54 },
-];
+const cityList = {
+  北京: { name: "北京", longitude: 116.3, latitude: 39.9 },
+  上海: { name: "上海", longitude: 121, latitude: 31.0 },
+  西安: { name: "西安", longitude: 108, latitude: 34 },
+  成都: { name: "成都", longitude: 103, latitude: 31 },
+  乌鲁木齐: { name: "乌鲁木齐", longitude: 87.0, latitude: 43.0 },
+  拉萨: { name: "拉萨", longitude: 91.06, latitude: 29.36 },
+  广州: { name: "广州", longitude: 113.0, latitude: 23.06 },
+  哈尔滨: { name: "哈尔滨", longitude: 127.0, latitude: 45.5 },
+  沈阳: { name: "沈阳", longitude: 123.43, latitude: 41.8 },
+  武汉: { name: "武汉", longitude: 114.0, latitude: 30.0 },
+  海口: { name: "海口", longitude: 110.0, latitude: 20.03 },
+  纽约: { name: "纽约", longitude: -74.5, latitude: 40.5 },
+  伦敦: { name: "伦敦", longitude: 0.1, latitude: 51.3 },
+  巴黎: { name: "巴黎", longitude: 2.2, latitude: 48.5 },
+  开普敦: { name: "开普敦", longitude: 18.25, latitude: -33.5 },
+  悉尼: { name: "悉尼", longitude: 151.1, latitude: -33.51 },
+  东京: { name: "东京", longitude: 139.69, latitude: 35.69 },
+  里约热内卢: { name: "里约热内卢", longitude: -43.11, latitude: -22.54 },
+};
 
 /**
  * 地球
@@ -233,7 +236,8 @@ export default class Particl extends Component<IProps, IState> {
     scene.add(earthGroup);
 
     // 城市点位标注
-    cityList.forEach((item) => {
+    console.log(Object.values(cityList));
+    Object.values(cityList).forEach((item) => {
       // console.log("cityMark", item.name, this.lon2xyz(radius, item.longitude, item.latitude));
       this.cityMark(this.lon2xyz(radius, item.longitude, item.latitude));
     });
@@ -242,32 +246,31 @@ export default class Particl extends Component<IProps, IState> {
     this.positioningChina();
 
     // 飞线
-    const from: {
-      lng: number;
-      lat: number;
-    } = {
-      lng: 116.3,
-      lat: 39.9,
-    };
-    const to: {
-      lng: number;
-      lat: number;
-    } = {
-      lng: 87,
-      lat: 43,
-    };
-    const to2: {
-      lng: number;
-      lat: number;
-    } = {
-      lng: 110,
-      lat: 20.03,
-    };
+    const LineData: { _from: string; _to: string }[] = [
+      {
+        _from: "北京",
+        _to: "乌鲁木齐",
+      },
+      {
+        _from: "哈尔滨",
+        _to: "海口",
+      },
+      {
+        _from: "广州",
+        _to: "上海",
+      },
+    ];
 
-    this.addFlyLine(from, to);
-    this.addFlyLine(from, to2);
+    linesGroup = new Group();
+    LineData.map((item) => {
+      console.log(item);
+      this.addFlyLine(item);
+    });
+    // this.addFlyLine(from, to);
+    // this.addFlyLine(from, to2);
+    earthGroup.add(linesGroup);
 
-    console.log("cityWaveMeshGroup", cityWaveMeshGroup);
+    // console.log("cityWaveMeshGroup", cityWaveMeshGroup);
     this.addGui();
   };
 
@@ -557,12 +560,10 @@ export default class Particl extends Component<IProps, IState> {
   /**
    * 添加点与点之间的飞线
    */
-  addFlyLine2() {}
-
-  /**
-   * 添加点与点之间的飞线
-   */
-  addFlyLine(from: { lng: number; lat: number }, to: { lng: number; lat: number }) {
+  // addFlyLine(from: { name: string; lng: number; lat: number }, to: { name: string; lng: number; lat: number }) {
+  addFlyLine(_data: { _from: string; _to: string }) {
+    const from: { name: string; longitude: number; latitude: number } = cityList[_data._from];
+    const to: { name: string; longitude: number; latitude: number } = cityList[_data._to];
     // 飞线材质
     const material = new ShaderMaterial({
       vertexShader: VertexShader,
@@ -577,29 +578,39 @@ export default class Particl extends Component<IProps, IState> {
         colorA: { value: new Color("#16BDFF") },
       },
     });
-    // linesMaterial.push(material);
+    linesMaterial.push(material);
 
-    const pos = this.lon2xyz(radius, from.lng, from.lat);
-    const pos1 = this.lon2xyz(radius, to.lng, to.lat);
+    const pos = this.lon2xyz(radius, from.longitude, from.latitude);
+    const pos1 = this.lon2xyz(radius, to.longitude, to.latitude);
 
     const _posStart = new Vector3(pos.x, pos.y, pos.z);
     const _posEnd = new Vector3(pos1.x, pos1.y, pos1.z);
 
     // 中间点
-    const _posMiddle = new Vector3()
-      .addVectors(new Vector3(pos.x, pos.y, pos.z), new Vector3(pos1.x, pos1.y, pos1.z))
-      .multiplyScalar(0.55);
-    const _posMiddle2 = new Vector3()
-      .addVectors(new Vector3(pos.x, pos.y, pos.z), new Vector3(pos1.x, pos1.y, pos1.z))
-      .multiplyScalar(0.85);
-    console.log("贝塞尔曲线", _posStart, _posEnd, _posMiddle, _posMiddle2);
+    // const _posMiddle2 = new Vector3().addVectors(_posStart, _posEnd).multiplyScalar(0.85);
+    const _posMiddle = new Vector3(
+      (_posStart.x + _posEnd.x) / 2,
+      (_posStart.y + _posEnd.y) / 1.5,
+      (_posStart.z + _posEnd.z) / 2
+    );
+    console.log("贝塞尔曲线", _posStart, _posEnd, _posMiddle);
 
     // 贝塞尔曲线
-    var curve = new CubicBezierCurve3(_posStart, _posMiddle, _posMiddle2, _posEnd);
-    const geometry = new TubeGeometry(curve, 32, 0.03, 8, false);
+    var curve = new CubicBezierCurve3(_posStart, _posMiddle, _posMiddle, _posEnd);
+    const geometry = new TubeGeometry(curve, 32, 0.02, 8, false);
+
+    // const points = curve.getPoints(50);
+    // const geometry = new BufferGeometry().setFromPoints(points);
+    // const _material = new LineBasicMaterial({
+    //   // vertexColors: true,
+    //   linewidth: 10,
+    //   color: new Color("#DE325B"),
+    //   side: DoubleSide,
+    // });
     line = new Mesh(geometry, material);
     console.log("line", line);
-    earthGroup.add(line);
+
+    linesGroup.add(line);
   }
 
   /**
@@ -693,9 +704,9 @@ export default class Particl extends Component<IProps, IState> {
     let otherFolder = gui.addFolder("其他");
     otherFolder.add(sprite.scale, "x").min(0).max(80).step(1).name("光晕缩放_x");
     otherFolder.add(sprite.scale, "y").min(0).max(80).step(1).name("光晕缩放_y");
-    otherFolder.add(line.scale, "x").min(0).max(8).step(0.1).name("标注_x");
-    otherFolder.add(line.scale, "y").min(0).max(8).step(0.1).name("标注_y");
-    otherFolder.add(line.scale, "z").min(0).max(8).step(0.1).name("标注_y");
+    //   otherFolder.add(line.scale, "x").min(0).max(8).step(0.1).name("标注_x");
+    //   otherFolder.add(line.scale, "y").min(-300).max(800).step(0.1).name("标注_y");
+    //   otherFolder.add(line.scale, "z").min(-300).max(800).step(0.1).name("标注_y");
   }
 
   onWindowResize() {
@@ -714,6 +725,18 @@ export default class Particl extends Component<IProps, IState> {
     // 光圈标注动画
     if (cityWaveMeshGroup?.length) {
       this.cityWaveAnimate(cityWaveMeshGroup);
+    }
+
+    //飞线颜色变化
+    if (linesGroup?.children?.length > 0) {
+      if (lineTime >= 1.0) {
+        lineTime = 0.0;
+      } else {
+        lineTime += 0.005;
+      }
+      linesMaterial.forEach((m) => {
+        m.uniforms.time.value = lineTime;
+      });
     }
 
     controls.update();
