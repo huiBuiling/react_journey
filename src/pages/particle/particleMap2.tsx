@@ -47,7 +47,9 @@ import {
   // 线
   ShaderMaterial,
   QuadraticBezierCurve3,
+  CubicBezierCurve3,
   TubeGeometry,
+  Line,
 } from "three";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -57,6 +59,7 @@ import FragmentShader from "./map/fragment.glsl";
 
 //引入国家边界数据
 import pointArr from "./map/world";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
 
 //
 let container: any,
@@ -86,30 +89,15 @@ let directionalLight: DirectionalLight,
   ambientLight: AmbientLight;
 
 // 线
+let line: any;
 let linesMaterial: ShaderMaterial[] = [];
 
 // 城市数据
 const cityList = [
-  {
-    name: "北京",
-    longitude: 116.3,
-    latitude: 39.9,
-  },
-  {
-    name: "上海",
-    longitude: 121,
-    latitude: 31.0,
-  },
-  {
-    name: "西安",
-    longitude: 108,
-    latitude: 34,
-  },
-  {
-    name: "成都",
-    longitude: 103,
-    latitude: 31,
-  },
+  { name: "北京", longitude: 116.3, latitude: 39.9 },
+  { name: "上海", longitude: 121, latitude: 31.0 },
+  { name: "西安", longitude: 108, latitude: 34 },
+  { name: "成都", longitude: 103, latitude: 31 },
   { name: "乌鲁木齐", longitude: 87.0, latitude: 43.0 },
   { name: "拉萨", longitude: 91.06, latitude: 29.36 },
   { name: "广州", longitude: 113.0, latitude: 23.06 },
@@ -243,10 +231,10 @@ export default class Particl extends Component<IProps, IState> {
 
     earthGroup.add(cityGroup);
     scene.add(earthGroup);
-    this.addGui();
 
     // 城市点位标注
     cityList.forEach((item) => {
+      // console.log("cityMark", item.name, this.lon2xyz(radius, item.longitude, item.latitude));
       this.cityMark(this.lon2xyz(radius, item.longitude, item.latitude));
     });
 
@@ -254,9 +242,33 @@ export default class Particl extends Component<IProps, IState> {
     this.positioningChina();
 
     // 飞线
-    // this.addFlyLine();
+    const from: {
+      lng: number;
+      lat: number;
+    } = {
+      lng: 116.3,
+      lat: 39.9,
+    };
+    const to: {
+      lng: number;
+      lat: number;
+    } = {
+      lng: 87,
+      lat: 43,
+    };
+    const to2: {
+      lng: number;
+      lat: number;
+    } = {
+      lng: 110,
+      lat: 20.03,
+    };
+
+    this.addFlyLine(from, to);
+    this.addFlyLine(from, to2);
 
     console.log("cityWaveMeshGroup", cityWaveMeshGroup);
+    this.addGui();
   };
 
   /**
@@ -477,7 +489,7 @@ export default class Particl extends Component<IProps, IState> {
     });
     let cityWaveMesh: any = new Mesh(cityGeometry, cityWaveMaterial);
     // 矩形平面Mesh的尺寸
-    const _size2 = radius * 0.08;
+    const _size2 = radius * 0.06;
     // 自定义属性: size，表示 mesh 静态大小
     (cityWaveMesh as any).size = _size2;
     // 设置mesh大小
@@ -486,8 +498,9 @@ export default class Particl extends Component<IProps, IState> {
      * 自定义属性: _s
      * 表示mesh在原始大小基础上放大倍数
      * 光圈在原来mesh.size基础上1~2倍之间变化
+     * 用于涟漪效果
      */
-    cityWaveMesh._s = Math.random() * 1.0 + 1.0;
+    cityWaveMesh._s = Math.random() + 1.0;
 
     // 设置位置点
     cityWaveMesh.position.set(data.x, data.y, data.z);
@@ -544,7 +557,13 @@ export default class Particl extends Component<IProps, IState> {
   /**
    * 添加点与点之间的飞线
    */
-  addFlyLine() {
+  addFlyLine2() {}
+
+  /**
+   * 添加点与点之间的飞线
+   */
+  addFlyLine(from: { lng: number; lat: number }, to: { lng: number; lat: number }) {
+    // 飞线材质
     const material = new ShaderMaterial({
       vertexShader: VertexShader,
       fragmentShader: FragmentShader,
@@ -554,30 +573,32 @@ export default class Particl extends Component<IProps, IState> {
         time: {
           value: 0,
         },
-        // colorA: { value: new Color(getRgbColor(op.itemStyle.color)) },
-        // colorB: { value: new Color(getRgbColor(op.itemStyle.runColor)) },
         colorB: { value: new Color("#E54674") },
         colorA: { value: new Color("#16BDFF") },
       },
     });
-    linesMaterial.push(material);
+    // linesMaterial.push(material);
 
-    let pos = this.lon2xyz(radius, 116.3, 39.9);
-    let pos1 = this.lon2xyz(radius, 103, 31);
-    //过滤飞线范围
-    //贝塞尔曲线
-    const curve = new QuadraticBezierCurve3(
-      new Vector3(pos.x, 0, pos.x),
-      new Vector3(pos.y, 0, pos.y),
-      new Vector3(pos.z, 0, pos.z)
-    );
+    const pos = this.lon2xyz(radius, from.lng, from.lat);
+    const pos1 = this.lon2xyz(radius, to.lng, to.lat);
 
-    const geometry = new TubeGeometry(curve, 32, 5, 8, false);
+    const _posStart = new Vector3(pos.x, pos.y, pos.z);
+    const _posEnd = new Vector3(pos1.x, pos1.y, pos1.z);
 
-    const line = new Mesh(geometry, material);
+    // 中间点
+    const _posMiddle = new Vector3()
+      .addVectors(new Vector3(pos.x, pos.y, pos.z), new Vector3(pos1.x, pos1.y, pos1.z))
+      .multiplyScalar(0.55);
+    const _posMiddle2 = new Vector3()
+      .addVectors(new Vector3(pos.x, pos.y, pos.z), new Vector3(pos1.x, pos1.y, pos1.z))
+      .multiplyScalar(0.85);
+    console.log("贝塞尔曲线", _posStart, _posEnd, _posMiddle, _posMiddle2);
+
+    // 贝塞尔曲线
+    var curve = new CubicBezierCurve3(_posStart, _posMiddle, _posMiddle2, _posEnd);
+    const geometry = new TubeGeometry(curve, 32, 0.03, 8, false);
+    line = new Mesh(geometry, material);
     console.log("line", line);
-    // line.name = "lines-" + idx + "-" + index;
-    // linesGroup.add(line);
     earthGroup.add(line);
   }
 
@@ -672,9 +693,9 @@ export default class Particl extends Component<IProps, IState> {
     let otherFolder = gui.addFolder("其他");
     otherFolder.add(sprite.scale, "x").min(0).max(80).step(1).name("光晕缩放_x");
     otherFolder.add(sprite.scale, "y").min(0).max(80).step(1).name("光晕缩放_y");
-    // otherFolder.add(cityWaveMesh.scale, "x").min(-800).max(800).step(1).name("标注_x");
-    // otherFolder.add(cityWaveMesh.scale, "y").min(-800).max(800).step(1).name("标注_y");
-    // otherFolder.add(cityWaveMesh.scale, "z").min(-800).max(800).step(1).name("标注_y");
+    otherFolder.add(line.scale, "x").min(0).max(8).step(0.1).name("标注_x");
+    otherFolder.add(line.scale, "y").min(0).max(8).step(0.1).name("标注_y");
+    otherFolder.add(line.scale, "z").min(0).max(8).step(0.1).name("标注_y");
   }
 
   onWindowResize() {
