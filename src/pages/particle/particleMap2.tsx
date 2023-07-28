@@ -93,7 +93,6 @@ let directionalLight: DirectionalLight,
 let linesMaterial: ShaderMaterial[] = [], // 飞线材质数组，主要区分颜色
   linesGroup: any,
   lineTime = 0;
-let line: any;
 
 // 城市数据
 const cityList = {
@@ -259,6 +258,18 @@ export default class Particl extends Component<IProps, IState> {
         _from: "广州",
         _to: "上海",
       },
+      {
+        _from: "广州",
+        _to: "东京",
+      },
+      {
+        _from: "东京",
+        _to: "西安",
+      },
+      {
+        _from: "拉萨",
+        _to: "巴黎",
+      },
     ];
 
     linesGroup = new Group();
@@ -266,8 +277,6 @@ export default class Particl extends Component<IProps, IState> {
       console.log(item);
       this.addFlyLine(item);
     });
-    // this.addFlyLine(from, to);
-    // this.addFlyLine(from, to2);
     earthGroup.add(linesGroup);
 
     // console.log("cityWaveMeshGroup", cityWaveMeshGroup);
@@ -560,7 +569,6 @@ export default class Particl extends Component<IProps, IState> {
   /**
    * 添加点与点之间的飞线
    */
-  // addFlyLine(from: { name: string; lng: number; lat: number }, to: { name: string; lng: number; lat: number }) {
   addFlyLine(_data: { _from: string; _to: string }) {
     const from: { name: string; longitude: number; latitude: number } = cityList[_data._from];
     const to: { name: string; longitude: number; latitude: number } = cityList[_data._to];
@@ -607,7 +615,7 @@ export default class Particl extends Component<IProps, IState> {
     //   color: new Color("#DE325B"),
     //   side: DoubleSide,
     // });
-    line = new Mesh(geometry, material);
+    const line = new Mesh(geometry, material);
     console.log("line", line);
 
     linesGroup.add(line);
