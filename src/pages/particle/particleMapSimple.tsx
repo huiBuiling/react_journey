@@ -240,11 +240,12 @@ export default class Particl extends Component<IProps, IState> {
     // console.log(Object.values(cityList));
     Object.values(cityList).forEach((item) => {
       // console.log("cityMark", item.name, this.lon2xyz(radius, item.longitude, item.latitude));
-      this.cityMark(this.lon2xyz(radius, item.longitude, item.latitude));
+      this.cityMark(item);
     });
 
     // 点击
-    // window.addEventListener("click", this.getObj);
+    window.addEventListener("click", this.getObj);
+    window.addEventListener("onmouseover", this.getObj);
 
     // 旋转地球到中国位置
     this.positioningChina();
@@ -255,10 +256,7 @@ export default class Particl extends Component<IProps, IState> {
         _from: "开普敦",
         _to: "巴黎",
       },
-      {
-        _from: "巴黎",
-        _to: "悉尼",
-      },
+
       {
         _from: "悉尼",
         _to: "东京",
@@ -494,7 +492,10 @@ export default class Particl extends Component<IProps, IState> {
    * 城市位置标注
    * PlaneBufferGeometry：已废弃
    */
-  cityMark(data: { x: number; y: number; z: number }) {
+  cityMark(cityData: any) {
+    const data = this.lon2xyz(radius, cityData.longitude, cityData.latitude);
+    console.log("cityData", cityData);
+
     const cityGeometry = new PlaneGeometry(1, 1); // 默认在XOY平面上
 
     // 城市点添加 -> 黄圈点
@@ -509,6 +510,7 @@ export default class Particl extends Component<IProps, IState> {
     let cityMesh = new Mesh(cityGeometry, cityPointMaterial);
     // // 设置 mesh 大小
     const _size = radius * 0.04;
+    cityMesh.name = cityData.name;
     cityMesh.scale.set(_size, _size, _size);
 
     // 光圈
@@ -695,23 +697,27 @@ export default class Particl extends Component<IProps, IState> {
     return v1.lerp(v2, len / v1v2Len);
   }
 
-  // getObj(event: any) {
-  //   //屏幕坐标转标准设备坐标 event.view.pageXOffset pageYOffset
-  //   const width = event.offsetX / window.innerWidth;
-  //   const height = event.offsetY / window.innerHeight;
-  //   const x = width * 2 - 1;
-  //   const y = -height * 2 + 1;
-  //   const raycaster = new Raycaster();
-  //   // 通过摄像机和鼠标位置更新射线, 点击位置生成raycaster的射线ray
-  //   raycaster.setFromCamera(new Vector2(x, y), camera);
+  /**
+   * 点击事件
+   * @param event
+   */
+  getObj(event: any) {
+    //屏幕坐标转标准设备坐标 event.view.pageXOffset pageYOffset
+    const width = event.offsetX / window.innerWidth;
+    const height = event.offsetY / window.innerHeight;
+    const x = width * 2 - 1;
+    const y = -height * 2 + 1;
+    const raycaster = new Raycaster();
+    // 通过摄像机和鼠标位置更新射线, 点击位置生成raycaster的射线ray
+    raycaster.setFromCamera(new Vector2(x, y), camera);
 
-  //   // Object click listener
-  //   const intersectsObjects = raycaster.intersectObjects(cityGroup.children);
-  //   if (intersectsObjects.length > 0) {
-  //     const selectedModel = intersectsObjects[0].object;
-  //     console.log("selectedModel", selectedModel);
-  //   }
-  // }
+    // Object click listener
+    const intersectsObjects = raycaster.intersectObjects(cityGroup.children);
+    if (intersectsObjects.length > 0) {
+      const selectedModel = intersectsObjects[0].object;
+      console.log("selectedModel", selectedModel.name, selectedModel);
+    }
+  }
 
   /**
    * 平行光 DirectionalLight
