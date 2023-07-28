@@ -40,6 +40,7 @@ export default defineConfig({
     { path: "/particleObj", component: "@/pages/particle/particle" },
     { path: "/particleMap", component: "@/pages/particle/particleMap" },
     { path: "/particleMap2", component: "@/pages/particle/particleMap2" },
+    { path: "/particleMapSimple", component: "@/pages/particle/particleMapSimple" },
 
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
