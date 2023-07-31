@@ -50,6 +50,8 @@ import {
   Line,
   LineDashedMaterial,
   Ray,
+  // B样条曲线
+  CatmullRomCurve3,
   // 点击
   Raycaster,
   Vector2,
@@ -59,7 +61,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import TWEEN from "@tweenjs/tween.js";
 import VertexShader from "./map/vertex.glsl";
 import FragmentShader from "./map/fragment.glsl";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import FlyVertexShader from "./map/vertex.glsl";
+import FlyFragmentShader from "./map/fragment.glsl";
+// import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 //引入国家边界数据
 import pointArr from "./map/world";
@@ -95,6 +99,10 @@ let directionalLight: DirectionalLight,
 let linesMaterial: ShaderMaterial[] = [], // 飞线材质数组，主要区分颜色
   linesGroup: any,
   lineTime = 0;
+
+let flyArr: any[] = [],
+  baicSpeed = 1,
+  flyId = 0;
 
 // 城市数据
 const cityList = {
@@ -218,7 +226,7 @@ export default class Particl extends Component<IProps, IState> {
     textureLoader = new TextureLoader();
     earthGroup = new Group();
     // 星空
-    this.initPoint();
+    // this.initPoint();
     // 地球
     this.initEarth();
     // 绘制世界轮廓
@@ -245,7 +253,7 @@ export default class Particl extends Component<IProps, IState> {
 
     // 点击
     window.addEventListener("click", this.getObj);
-    window.addEventListener("onmouseover", this.getObj);
+    // window.addEventListener("onmouseover", this.getObj);
 
     // 旋转地球到中国位置
     this.positioningChina();
@@ -292,11 +300,11 @@ export default class Particl extends Component<IProps, IState> {
     ];
 
     linesGroup = new Group();
-    LineData.map((item) => {
-      console.log(item);
-      this.addFlyLine(item);
-    });
-    // this.addFlyLine(LineData[0]);
+    // LineData.map((item) => {
+    //   console.log(item);
+    //   this.addFlyLine(item);
+    // });
+    this.addFlyLine(LineData[4]);
     earthGroup.add(linesGroup);
 
     // console.log("cityWaveMeshGroup", cityWaveMeshGroup);
@@ -327,8 +335,9 @@ export default class Particl extends Component<IProps, IState> {
 
     _anim.start();
 
+    const scale = 1.5;
     const _anim2 = new TWEEN.Tween(earthGroup.scale)
-      .to({ x: 2, y: 2, z: 2 }, 5000) //.to({rotateY: endRotateY, zoom: endZoom}, 10000)
+      .to({ x: scale, y: scale, z: scale }, 5000) //.to({rotateY: endRotateY, zoom: endZoom}, 10000)
       .easing(TWEEN.Easing.Quintic.Out)
       .onUpdate(function (object: any) {
         // TWEEN.remove(_anim);
@@ -493,7 +502,7 @@ export default class Particl extends Component<IProps, IState> {
    */
   cityMark(cityData: any) {
     const data = this.lon2xyz(radius, cityData.longitude, cityData.latitude);
-    console.log("cityData", cityData);
+    // console.log("cityData", cityData);
 
     const cityGeometry = new PlaneGeometry(1, 1); // 默认在XOY平面上
 
@@ -594,7 +603,7 @@ export default class Particl extends Component<IProps, IState> {
    * 添加点与点之间的飞线
    * https://blog.csdn.net/lilycheng1986/article/details/124997460
    */
-  addFlyLine(_data: { _from: string; _to: string }) {
+  addFlyLine2(_data: { _from: string; _to: string }) {
     const from: { name: string; longitude: number; latitude: number } = cityList[_data._from];
     const to: { name: string; longitude: number; latitude: number } = cityList[_data._to];
     // 飞线材质
@@ -683,7 +692,269 @@ export default class Particl extends Component<IProps, IState> {
 
   /**
    * 飞线方案2：B线条
+   * https://blog.csdn.net/ZY_FlyWay/article/details/122358494
+   *
+   * 取点 -> CatmullRomCurve3合成曲线 -> flyLine 动画库完成动画
+   * 1. 通过 lon2xyz 获取转换后的 x,y,z
+   * 2. 通过极端城市之间的距离，得到许多的中间点
+   * 3. 汇总成多点数据组
    */
+  addFlyLine(_data: { _from: string; _to: string }) {
+    const from: { name: string; longitude: number; latitude: number } = cityList[_data._from];
+    const to: { name: string; longitude: number; latitude: number } = cityList[_data._to];
+
+    // 获取位置
+    const _start = this.lon2xyz(radius, from.longitude, from.latitude);
+    const _end = this.lon2xyz(radius, to.longitude, to.latitude);
+
+    //
+    const coefficient = 1;
+    let curvePoints = new Array(); // 两点之间间隔点数据
+    curvePoints.push(new Vector3(_start.x, _start.y, _start.z)); // 开始点
+
+    // 根据城市之间距离远近，取不同个数个点
+    const distanceDivRadius =
+      Math.sqrt(
+        (_start.x - _end.x) * (_start.x - _end.x) +
+          (_start.y - _end.y) * (_start.y - _end.y) +
+          (_start.z - _end.z) * (_start.z - _end.z)
+      ) / radius;
+    const partCount = 3 + Math.ceil(distanceDivRadius * 3);
+    for (let i = 0; i < partCount; i++) {
+      let partCoefficient = coefficient + (partCount - Math.abs((partCount - 1) / 2 - i)) * 0.01;
+      let partTopXyz = this.getPartTopPoint(
+        {
+          x: (_start.x * (partCount - i)) / partCount + (_end.x * (i + 1)) / partCount,
+          y: (_start.y * (partCount - i)) / partCount + (_end.y * (i + 1)) / partCount,
+          z: (_start.z * (partCount - i)) / partCount + (_end.z * (i + 1)) / partCount,
+        },
+        radius,
+        partCoefficient
+      );
+      curvePoints.push(new Vector3(partTopXyz.x, partTopXyz.y, partTopXyz.z)); // 每一个中间点
+    }
+    curvePoints.push(new Vector3(_end.x, _end.y, _end.z)); // 结束点
+
+    console.log("B line", _start, _end, curvePoints);
+
+    // 通过点数组生成曲线路径-----------------
+    /**
+     * 使用三维样条曲线  Catmull-Rom算法，将这些点拟合成一条曲线
+     * 这里没有使用贝赛尔曲线，因为拟合出来的点要在地球周围，不能穿过地球
+     */
+    const curve = new CatmullRomCurve3(curvePoints);
+    // getPoints是基类Curve的方法，返回一个vector3对象作为元素组成的数组
+    const pointCount = Math.ceil(500 * partCount);
+    const allPoints = curve.getPoints(pointCount); // 分段数pointCount，返回pointCount + 1个顶点
+    // 声明一个几何体对象 BufferGeometry
+    const geometry = new BufferGeometry();
+    // setFromPoints方法从points中提取数据改变几何体的顶点属性vertices
+    geometry.setFromPoints(allPoints);
+    //材质对象
+    const material = new LineBasicMaterial({
+      color: 0x06bf5f,
+    });
+    //线条模型对象
+    const line = new Line(geometry, material);
+
+    // const line = this.lineMaterial(
+    //   "rgba(255, 147, 0, 1)", //点的颜色
+    //   allPoints, //飞线飞线其实是N个点构成的
+    //   3, //点的半径
+    //   Math.ceil((allPoints.length * 3) / 5), // 飞线的长度（点的个数）
+    //   partCount + 10, //飞线的速度
+    //   Infinity //循环次数
+    // );
+
+    // console.log("flyArr", flyArr);
+
+    console.log("line", line);
+    linesGroup.add(line);
+  }
+
+  /**
+   * 飞线方案2：B线条
+   * 工具方法 -> 颜色数组
+   */
+  getColorArr(str: string) {
+    if (Array.isArray(str)) return str; //error
+    let _arr: any[] = [];
+    str = str + "";
+    str = str.toLowerCase().replace(/\s/g, "");
+    if (/^((?:rgba)?)\(\s*([^\)]*)/.test(str)) {
+      const arr: any[] = str.replace(/rgba\(|\)/gi, "").split(",");
+      const hex: any[] = [
+        pad2(Math.round(arr[0] * 1 || 0).toString(16)),
+        pad2(Math.round(arr[1] * 1 || 0).toString(16)),
+        pad2(Math.round(arr[2] * 1 || 0).toString(16)),
+      ];
+      _arr[0] = new Color("#" + hex.join(""));
+      _arr[1] = Math.max(0, Math.min(1, arr[3] * 1 || 0));
+    } else if ("transparent" === str) {
+      _arr[0] = new Color();
+      _arr[1] = 0;
+    } else {
+      _arr[0] = new Color(str);
+      _arr[1] = 1;
+    }
+
+    function pad2(c: any) {
+      return c.length == 1 ? "0" + c : "" + c;
+    }
+    return _arr;
+  }
+  /**
+   * 飞线方案2：B线条
+   * 工具方法 -> 材质
+   *
+   * @param   {String}  color  [颜色_透明度]
+   * @param   {Array}   curve  [线的节点]
+   * @param   {Number}  _width  [宽度]
+   * @param   {Number}  _length [长度]
+   * @param   {Number}  _speed  [速度]
+   * @param   {Number}  _repeat [重复次数]
+   * @param   {}        _texture []
+   * @return  {Mesh}              [return 图层]
+   */
+  lineMaterial(
+    color = "rgba(255,255,255,1)",
+    curve: Vector3[] = [],
+    _width = 1,
+    _length = 10,
+    _speed = 1,
+    _repeat = 1,
+    _texture?: any,
+    callback?: void
+  ) {
+    debugger;
+
+    // 声明一个几何体对象 BufferGeometry
+    let geometry = new BufferGeometry();
+    // 颜色数组
+    let colorArr = this.getColorArr(color);
+    let texture: any = 0.0;
+    if (_texture && !_texture?.isTexture) {
+      texture = textureLoader.load(_texture);
+    } else {
+      texture = null;
+    }
+    let material = new ShaderMaterial({
+      uniforms: {
+        color: {
+          value: colorArr[0],
+          // type: "v3",
+        },
+        size: {
+          value: _width,
+          // type: "f",
+        },
+        // u_map: {
+        //   value: _texture ? _texture : texture,
+        //   type: "t2",
+        // },
+        u_len: {
+          value: _length,
+          // type: "f",
+        },
+        u_opacity: {
+          value: colorArr[1],
+          // type: "f",
+        },
+        time: {
+          value: -_length,
+          // type: "f",
+        },
+        isTexture: {
+          value: 1.0,
+          // type: "f",
+        },
+      },
+      // transparent: false,
+      depthTest: true,
+      vertexShader: FlyVertexShader,
+      fragmentShader: FlyFragmentShader,
+
+      side: DoubleSide,
+      transparent: true,
+    });
+
+    let position: number[] = [];
+    let u_index: number[] = [];
+
+    curve.forEach(function (
+      elem: {
+        x: number;
+        y: number;
+        z: number;
+      },
+      index: number
+    ) {
+      position.push(elem.x, elem.y, elem.z);
+      u_index.push(index);
+    });
+    console.log("position", position);
+
+    geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
+    geometry.setAttribute("u_index", new Float32BufferAttribute(u_index, 1));
+
+    let mesh: any = new Points(geometry, material);
+    mesh.name = "fly";
+    mesh._flyId = flyId;
+    mesh._speed = _speed;
+    mesh._repeat = _repeat;
+    mesh._been = 0;
+    mesh._total = curve.length;
+    mesh._callback = callback;
+    flyId++;
+    flyArr.push(mesh);
+    return mesh;
+  }
+
+  /**
+   * 飞线方案2：B线条
+   * 工具方法
+   */
+  getPartTopPoint(innerPoint: { x: number; y: number; z: number }, earthRadius: number, partCoefficient: number) {
+    const fromPartLen = Math.sqrt(
+      innerPoint.x * innerPoint.x + innerPoint.y * innerPoint.y + innerPoint.z * innerPoint.z
+    );
+    return {
+      x: (innerPoint.x * partCoefficient * earthRadius) / fromPartLen,
+      y: (innerPoint.y * partCoefficient * earthRadius) / fromPartLen,
+      z: (innerPoint.z * partCoefficient * earthRadius) / fromPartLen,
+    };
+  }
+
+  flyAnimation(delta = 0.015) {
+    if (delta > 0.2) return;
+    flyArr.forEach((elem) => {
+      if (!elem.parent) return;
+      if (elem._been > elem._repeat) {
+        elem.visible = false;
+        if (typeof elem._callback === "function") {
+          elem._callback(elem);
+        }
+        this.removeFlyLine(elem);
+      } else {
+        let uniforms = elem.material.uniforms;
+        //完结一次
+        if (uniforms.time.value < elem._total) {
+          uniforms.time.value += delta * (baicSpeed / delta) * elem._speed;
+        } else {
+          elem._been += 1;
+          uniforms.time.value = -uniforms.u_len.value;
+        }
+      }
+    });
+  }
+
+  removeFlyLine(mesh: any) {
+    mesh.material.dispose();
+    mesh.geometry.dispose();
+    flyArr = flyArr.filter((elem) => elem._flyId != mesh._flyId);
+    mesh.parent.remove(mesh);
+    mesh = null;
+  }
 
   /**
    * 点击事件
@@ -704,6 +975,8 @@ export default class Particl extends Component<IProps, IState> {
     if (intersectsObjects.length > 0) {
       const selectedModel = intersectsObjects[0].object;
       console.log("selectedModel", selectedModel.name, selectedModel);
+
+      // 添加标签显示
     }
   }
 
@@ -750,7 +1023,6 @@ export default class Particl extends Component<IProps, IState> {
     window.addEventListener("resize", () => this.onWindowResize(), false);
   }
 
-  // 控制波动
   addGui() {
     let gui = new dat.GUI();
     let cameraFolder = gui.addFolder("相机");
@@ -823,14 +1095,15 @@ export default class Particl extends Component<IProps, IState> {
 
     //飞线颜色变化
     if (linesGroup?.children?.length > 0) {
-      if (lineTime >= 1.0) {
-        lineTime = 0.0;
-      } else {
-        lineTime += 0.005;
-      }
-      linesMaterial.forEach((m) => {
-        m.uniforms.time.value = lineTime;
-      });
+      // if (lineTime >= 1.0) {
+      //   lineTime = 0.0;
+      // } else {
+      //   lineTime += 0.005;
+      // }
+      // linesMaterial.forEach((m) => {
+      //   m.uniforms.time.value = lineTime;
+      // });
+      // this.flyAnimation();
     }
 
     controls.update();
