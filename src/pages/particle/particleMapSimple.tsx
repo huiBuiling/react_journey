@@ -218,7 +218,7 @@ export default class Particl extends Component<IProps, IState> {
     textureLoader = new TextureLoader();
     earthGroup = new Group();
     // 星空
-    // this.initPoint();
+    this.initPoint();
     // 地球
     this.initEarth();
     // 绘制世界轮廓
@@ -395,9 +395,8 @@ export default class Particl extends Component<IProps, IState> {
   }
 
   /**
-   * 绘制世界轮廓
+   * 绘制世界轮廓 -> 两点绘制贝塞尔曲线的方法
    * threejs 通过 LineLoop 和世界点数据，可以绘制多边形 -> 利用此原理绘制国家边界
-   *
    * LineLoop和Line功能一样，区别在于首尾顶点相连，轮廓闭合，
    * 但是绘制条数太多会用性能问题，LineSegments 是一条线绘制，提高性能，需要复制顶点
    */
@@ -591,8 +590,9 @@ export default class Particl extends Component<IProps, IState> {
   };
 
   /**
+   * 飞线方案1： 贝塞尔曲线 -> 通过两点绘制
    * 添加点与点之间的飞线
-   * 通过两点绘制贝塞尔曲线
+   * https://blog.csdn.net/lilycheng1986/article/details/124997460
    */
   addFlyLine(_data: { _from: string; _to: string }) {
     const from: { name: string; longitude: number; latitude: number } = cityList[_data._from];
@@ -619,6 +619,7 @@ export default class Particl extends Component<IProps, IState> {
     // 转为三维向量
     const _posStart = new Vector3(pos.x, pos.y, pos.z);
     const _posEnd = new Vector3(pos1.x, pos1.y, pos1.z);
+
     /**
      * 1. 计算两个向量的夹角
      * 2. 计算法向量: THREE.Ray(v1,v2) 向量 v1 v2 缩成方向的法向量
@@ -645,11 +646,9 @@ export default class Particl extends Component<IProps, IState> {
     var _posMiddle1 = this.getLenVcetor(_posStart.clone(), vtop, aLen);
     var _posMiddle2 = this.getLenVcetor(_posEnd.clone(), vtop, aLen);
 
-    // // 贝塞尔曲线: 起点，控制点1，控制点2， 终点
+    // 贝塞尔曲线: 起点，控制点1，控制点2， 终点
     var curve = new CubicBezierCurve3(_posStart, _posMiddle1, _posMiddle2, _posEnd);
     console.log("curve", _posStart, _posMiddle1, _posMiddle2, _posEnd);
-    // const geometry = new TubeGeometry(curve, 32, 0.02, 8, false);
-    // const line = new Mesh(geometry, material);
     const points = curve.getPoints(150);
     let geometry = new BufferGeometry().setFromPoints(points);
     const _material = new LineDashedMaterial({
@@ -661,23 +660,8 @@ export default class Particl extends Component<IProps, IState> {
       scale: 1,
       dashSize: 3,
       gapSize: 1,
-      // depthWrite:false
     });
 
-    // 配置线条颜色
-    // let colors: any[] = [];
-    // for (let i = 0; i < points.length; i++) {
-    //   // let color = new Color();
-    //   // color.setHSL(Math.random() * 0.2 + 0.5, 0.55, Math.random() * 0.25 + 0.55);
-    //   // colors.push(color.r, color.g, color.b);
-    //   if (i > 25) {
-    //     colors.push(0xc90000);
-    //   } else {
-    //     colors.push(0x169008);
-    //   }
-    // }
-    // console.log("colors", colors);
-    // geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
     // 输出网格
     const line = new Line(geometry, _material);
     // console.log("line", line);
@@ -696,6 +680,10 @@ export default class Particl extends Component<IProps, IState> {
     console.log("v1v2Len", v1v2Len);
     return v1.lerp(v2, len / v1v2Len);
   }
+
+  /**
+   * 飞线方案2：B线条
+   */
 
   /**
    * 点击事件
