@@ -29,6 +29,12 @@ export default defineConfig({
     { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
     { path: "/map", component: "@/pages/demos/map" },
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
+    { path: "/showroom", component: "@/pages/demos/showroom" },
+
+    // types
+    { path: "/glb", component: "@/pages/types/glb" },
+    { path: "/gltf", component: "@/pages/types/gltf" },
+
     // OK
     { path: "/webview", component: "@/pages/lights/webview" },
     // { path: "/webview2", component: "@/pages/lights/webview2" },

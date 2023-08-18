@@ -54,7 +54,7 @@ export default class Showroom extends Component {
 
     // 生成场景
     scene = new Scene();
-    // scene.background = new Color(0xbfe3dd);
+    scene.background = new Color(0xbfe3dd);
     // 透视相机
     camera = new PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
     scene.add(camera);
@@ -74,12 +74,11 @@ export default class Showroom extends Component {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enablePan = false;
-    // controls.target.set(0.32050702790515095, 0.6298344026809619, 3.6194884124668154);
-    controls.update();
+
     // 用来获取相机合适的显示位置
-    controls.addEventListener("change", () => {
-      console.log(`output->change`, camera.position);
-    });
+    // controls.addEventListener("change", () => {
+    //   console.log(`output->change`, camera.position);
+    // });
 
     // 不加动画时
     // renderer.render(scene, camera);
@@ -87,27 +86,23 @@ export default class Showroom extends Component {
     this.initModel();
     // light
     this.initLight();
+
+    // this.initGui();
   };
 
-  // 加载模型 .gltf + .bin + 贴图文件
+  // 加载模型
   initModel() {
-    // new RGBELoader().setPath("textures/equirectangular/").load("royal_esplanade_1k.hdr", function (texture) {
-    //   texture.mapping = THREE.EquirectangularReflectionMapping;
-
-    //   scene.background = texture;
-    //   scene.environment = texture;
-    // });
-
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("/public");
+    // dracoLoader.preload();
     const gltfLoader = new GLTFLoader();
-    gltfLoader.setPath("model/town_hall/");
+    // gltfLoader.setCrossOrigin("anonymous");
+    gltfLoader.setDRACOLoader(dracoLoader);
+    let loadProgress = 0;
     gltfLoader.load(
-      "scene.gltf",
-      (gltf) => {
-        console.log("gltf", gltf);
-        const model = gltf.scene;
-
-        scene.add(model);
-
+      "/model/3d_model_star_citizen_carrack_bridge.glb",
+      (res) => {
+        const model = res.scene;
         const box = new Box3().setFromObject(model); // 获取模型的包围盒
         const size = box.getSize(new Vector3());
         const pos = box.getCenter(new Vector3());
@@ -115,38 +110,19 @@ export default class Showroom extends Component {
         model.position.y = -pos.y;
         const height = box.max.y;
         const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
-        console.log("1", model.position, "camera", -pos.x, pos.y, dist * 1.5);
+        console.log("1", model.position, "camera", pos.x, pos.y, dist * 1.5);
         camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
 
-        const _pos = {
-          // x: 1.8852058293654468,
-          // y: 0.329038834678412,
-          // z: 20.503764384948816,
-          // x: 10,
-          // y: 41,
-          // z: 51,
-          x: 0.32050702790515095,
-          y: 0.6298344026809619,
-          z: 3.6194884124668154,
-        };
-        // camera.position.set(_pos.x, _pos.y, _pos.z); // fudge factor so you can see the boundaries
+        scene.add(model);
+        console.log("model", model);
 
-        model.traverse((child: any) => {
-          if (child.isMesh) {
-            child.material.emissiveMap = child.material.map;
-          }
-        });
-
-        // const _scale = 0.05;
-        // model.scale.set(_scale, _scale, _scale);
-        // model.position.x = -pos.x / 2;
-
-        // const _scale = 0.05;
-        // model.scale.set(_scale, _scale, _scale);
-
-        this.initGui();
+        const _scale = 0.8;
+        model.scale.set(_scale, _scale, _scale);
       },
-      (xhr) => {}
+      (xhr) => {
+        loadProgress = Math.floor((xhr.loaded / xhr.total) * 100);
+        console.log("loadProgress", loadProgress);
+      }
     );
   }
 
@@ -188,9 +164,7 @@ export default class Showroom extends Component {
    */
   initGui = () => {
     const gui = new dat.GUI();
-    gui.add(camera.position, "x").min(-800).max(800).step(1);
-    gui.add(camera.position, "y").min(-800).max(800).step(1);
-    gui.add(camera.position, "z").min(-800).max(800).step(1);
+    gui.add(ambientLight, "intensity").min(0).max(1).step(0.001);
   };
 
   render() {
