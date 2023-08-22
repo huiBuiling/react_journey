@@ -30,6 +30,7 @@ export default defineConfig({
     { path: "/map", component: "@/pages/demos/map" },
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
     { path: "/showroom", component: "@/pages/demos/showroom" },
+    { path: "/car", component: "@/pages/demos/car" },
 
     // types
     { path: "/glb", component: "@/pages/types/glb" },

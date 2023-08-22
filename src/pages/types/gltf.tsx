@@ -4,19 +4,20 @@ import {
   Scene,
   PerspectiveCamera,
   WebGLRenderer,
-  AmbientLight,
-  DirectionalLight,
-  Box3,
-  Vector3,
   Color,
   PMREMGenerator,
   sRGBEncoding,
+  // 灯光
+  AmbientLight,
+  DirectionalLight,
+  HemisphereLight,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import * as dat from "lil-gui";
+import utils from "@/utils/utils";
 
 let scene: Scene, camera: PerspectiveCamera, renderer: WebGLRenderer, clock: Clock;
 let controls: OrbitControls, pmremGenerator: PMREMGenerator;
@@ -25,9 +26,9 @@ let lights = [],
   mixer = null,
   clips = [],
   gui = null;
-let ambientLight: AmbientLight, directionalLight: DirectionalLight;
+let ambientLight: AmbientLight, directionalLight: DirectionalLight, hemiLight: HemisphereLight;
 // 配置项
-let wireframe: false, skeleton: false, grid: false;
+let wireframe: false, skeleton: false, grid: false, addLights: true;
 let exposure: 1.0, textureEncoding: "sRGB";
 let ambientIntensity = 0.3, // 环境
   ambientColor = 0xffffff,
@@ -40,6 +41,7 @@ export default class Showroom extends Component {
     this.init();
     this.animation();
 
+    // 环境贴图
     this.updateEnvironment();
   }
 
@@ -50,7 +52,8 @@ export default class Showroom extends Component {
     scene = new Scene();
     // scene.background = new Color(0xbfe3dd);
     // 透视相机
-    const fov = 40; // 视野范围
+    const fov = 60; // 视野范围 60 (0.8 * 180) / Math.PI
+    console.log("fov", fov);
     const aspect = window.innerWidth / window.innerHeight; // 相机默认值 画布的宽高比
     const near = 0.1; // 近平面
     const far = 1000; // 远平面
@@ -69,7 +72,7 @@ export default class Showroom extends Component {
 
     pmremGenerator = new PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    // scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
     renderer.render(scene, camera);
 
@@ -92,14 +95,13 @@ export default class Showroom extends Component {
     // renderer.render(scene, camera);
 
     this.initModel();
-    // light
-    this.initLight();
   };
 
   // 加载模型 .gltf + .bin + 贴图文件
   initModel() {
     const gltfLoader = new GLTFLoader();
-    gltfLoader.setPath("model/cars_3_driven_to_win_-_rich_mixon/");
+    // gltfLoader.setPath("model/cars_3_driven_to_win_-_rich_mixon/");
+    gltfLoader.setPath("model/3d_model_star_citizen_carrack_bridge/");
     gltfLoader.load(
       "scene.gltf",
       (gltf) => {
@@ -107,58 +109,21 @@ export default class Showroom extends Component {
         const model = gltf.scene || gltf.scenes[0];
         clips = gltf.animations || [];
         scene.add(model);
-        this.setContent(model, clips);
+        utils.setContent(camera, controls, model, clips);
+        this.addLight();
+        // // 环境贴图
+        // this.updateEnvironment();
         this.updateTextureEncoding(model);
       },
       (xhr) => {}
     );
   }
 
-  setContent(object: any, clips: any) {
-    const box = new Box3().setFromObject(object);
-    const size = box.getSize(new Vector3()).length();
-    const center = box.getCenter(new Vector3());
-    controls.reset();
-
-    object.position.x += object.position.x - center.x;
-    object.position.y += object.position.y - center.y;
-    object.position.z += object.position.z - center.z;
-    controls.maxDistance = size * 10;
-    camera.near = size / 100;
-    camera.far = size * 100;
-    camera.updateProjectionMatrix();
-
-    camera.position.copy(center);
-    camera.position.x += size / 2.0;
-    camera.position.y += size / 5.0;
-    camera.position.z += size / 2.0;
-    camera.lookAt(center);
-
-    //
-    object.traverse((node: any) => {
-      if (node.isLight) {
-      } else if (node.isMesh) {
-        // TODO(https://github.com/mrdoob/three.js/pull/18235): Clean up.
-        node.material.depthWrite = !node.material.transparent;
-      }
-    });
-
-    // 动画
-    // this.setClips(clips);
-  }
-
-  traverseMaterials(object: any, callback: any) {
-    object.traverse((node: any) => {
-      if (!node.isMesh) return;
-      const materials = Array.isArray(node.material) ? node.material : [node.material];
-      materials.forEach(callback);
-    });
-  }
-
+  // 更新纹理编码
   updateTextureEncoding(content: any) {
     // const encoding = this.state.textureEncoding === "sRGB" ? sRGBEncoding : LinearEncoding;
-    const encoding = sRGBEncoding;
-    this.traverseMaterials(content, (material: any) => {
+    const encoding = sRGBEncoding; // LinearEncoding
+    utils.traverseMaterials(content, (material: any) => {
       if (material.map) material.map.encoding = encoding;
       if (material.emissiveMap) material.emissiveMap.encoding = encoding;
       if (material.map || material.emissiveMap) material.needsUpdate = true;
@@ -167,37 +132,16 @@ export default class Showroom extends Component {
 
   // 环境贴图
   updateEnvironment() {
-    this.getCubeMapTexture({ path: "https://ysdl-model.oss-cn-shenzhen.aliyuncs.com/hdr/venice_sunset_1k.hdr" }).then(
-      ({ envMap }: any) => {
+    utils
+      .getCubeMapTexture(
+        { path: "https://ysdl-model.oss-cn-shenzhen.aliyuncs.com/hdr/canada_montreal_home_pierre_little1.hdr" },
+        pmremGenerator
+      )
+      .then(({ envMap }: any) => {
         if (!envMap) return;
         scene.environment = envMap;
-        scene.background = envMap; // envMap || null
-      }
-    );
-  }
-
-  getCubeMapTexture(environment: any) {
-    const { path } = environment;
-    // no envmap
-    if (!path) return Promise.resolve({ envMap: null });
-    // new RGBELoader().setPath("textures/equirectangular/").load("royal_esplanade_1k.hdr", function (texture) {
-    //   texture.mapping = THREE.EquirectangularReflectionMapping;
-    //   scene.background = texture;
-    //   scene.environment = texture;
-    // });
-
-    return new Promise((resolve, reject) => {
-      new RGBELoader().load(
-        path,
-        (texture) => {
-          const envMap = pmremGenerator.fromEquirectangular(texture).texture;
-          pmremGenerator.dispose();
-          resolve({ envMap });
-        },
-        undefined,
-        reject
-      );
-    });
+        // scene.background = envMap; // envMap || null
+      });
   }
 
   // updateLights() {
@@ -220,11 +164,18 @@ export default class Showroom extends Component {
   //   }
   // }
 
-  initLight() {
-    ambientLight = new AmbientLight(0xffffff, 0.5);
+  addLight() {
+    hemiLight = new HemisphereLight();
+    hemiLight.name = "hemi_light";
+    scene.add(hemiLight);
+
+    ambientLight = new AmbientLight(ambientColor, ambientIntensity);
+    ambientLight.name = "ambient_light";
     scene.add(ambientLight);
 
-    directionalLight = new DirectionalLight(0x00fffc, 0.3);
+    directionalLight = new DirectionalLight(directColor, directIntensity);
+    directionalLight.name = "main_light";
+    directionalLight.position.set(0.5, 0, 0.866);
     scene.add(directionalLight);
   }
 

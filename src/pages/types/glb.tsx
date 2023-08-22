@@ -11,6 +11,7 @@ import {
   Color,
   PMREMGenerator,
   sRGBEncoding,
+  LinearEncoding,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -67,6 +68,7 @@ export default class Showroom extends Component {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xac91a0, 1); // 设置背景颜色
     renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = LinearEncoding;
 
     pmremGenerator = new PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
@@ -88,6 +90,9 @@ export default class Showroom extends Component {
     // controls.addEventListener("change", () => {
     //   console.log(`output->change`, camera.position);
     // });
+
+    // 烦死啦，bu xiang shang ban  aaa
+    // wei sha zi yi dui dui dui dui que xiang shuijue shujue sshuiju dsfsufsdj
 
     // 不加动画时
     // renderer.render(scene, camera);
@@ -150,6 +155,8 @@ export default class Showroom extends Component {
       }
     });
 
+    // ,a hou mian hai you ren shen fasn sha hi sdf dfalklln
+    // fsdf jismxu fiweri ,dfvod
     // 动画
     // this.setClips(clips);
   }

@@ -16,6 +16,7 @@ import {
   Box3,
   Vector3,
   Color,
+  Group,
   PMREMGenerator,
   EquirectangularReflectionMapping, // hdr
 } from "three";
@@ -99,14 +100,25 @@ export default class Showroom extends Component {
     // });
 
     const gltfLoader = new GLTFLoader();
-    gltfLoader.setPath("model/town_hall/");
+    gltfLoader.setPath("model/3d_model_star_citizen_carrack_bridge/");
     gltfLoader.load(
       "scene.gltf",
       (gltf) => {
         console.log("gltf", gltf);
         const model = gltf.scene;
 
+        // 改变模型的旋转中心
+        /**
+         * 改变模型的旋转中心
+         * 算出模型的几何中心，算出模型相对模型原点的偏移
+         * 重点: 建立一个Group组，并对模型偏移
+         * -> group.position.set(0, 0, 0); // 世界原点坐标
+         */
+        let group: Group = new Group();
+        group.position.set(0, 0, 0); // 世界原点坐标
+
         scene.add(model);
+        // group.add(model);
 
         const box = new Box3().setFromObject(model); // 获取模型的包围盒
         const size = box.getSize(new Vector3());
@@ -115,8 +127,8 @@ export default class Showroom extends Component {
         model.position.y = -pos.y;
         const height = box.max.y;
         const dist = height / (2 * Math.tan((camera.fov * Math.PI) / 360)); // 360
+        camera.position.set(-pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
         console.log("1", model.position, "camera", -pos.x, pos.y, dist * 1.5);
-        camera.position.set(pos.x, pos.y, dist * 1.5); // fudge factor so you can see the boundaries
 
         const _pos = {
           // x: 1.8852058293654468,
