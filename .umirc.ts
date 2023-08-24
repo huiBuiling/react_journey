@@ -3,6 +3,7 @@ import { defineConfig } from "umi";
 export default defineConfig({
   npmClient: "yarn",
   routes: [
+    // base
     { path: "/", component: "@/pages/index" },
     { path: "/transformObj", component: "@/pages/transformObj" },
     { path: "/camera", component: "@/pages/camera" },
@@ -12,8 +13,8 @@ export default defineConfig({
     { path: "/texture", component: "@/pages/texture" },
     { path: "/materials", component: "@/pages/materials" },
     { path: "/standardMaterial", component: "@/pages/meshStandardMaterial" },
-    { path: "/fontLoader", component: "@/pages/fontLoader" },
-    //
+
+    // light
     { path: "/light", component: "@/pages/lights/light" },
     { path: "/lightAnim", component: "@/pages/lights/lightAnim" },
     { path: "/shadowBase", component: "@/pages/lights/shadows_base" },
@@ -21,48 +22,24 @@ export default defineConfig({
     { path: "/shadowsBaking", component: "@/pages/lights/shadowsBaking" },
 
     // DEMO
-    { path: "/dlight", component: "@/pages/lights/DLights" },
-    { path: "/3DText", component: "@/pages/demos/3DText" },
-    { path: "/mushroom", component: "@/pages/demos/mushroom" },
-    { path: "/girl", component: "@/pages/demos/girl" },
-    { path: "/editor", component: "@/pages/editor/index" },
-    { path: "/transformCtro", component: "@/pages/editor/transformCtro" },
-    { path: "/map", component: "@/pages/demos/map" },
     { path: "/hauntedHouse", component: "@/pages/demos/HauntedHouse" },
     { path: "/showroom", component: "@/pages/demos/showroom" },
-    { path: "/car", component: "@/pages/demos/car" },
 
     // types
     { path: "/glb", component: "@/pages/types/glb" },
     { path: "/gltf", component: "@/pages/types/gltf" },
 
-    // OK
-    { path: "/webview", component: "@/pages/lights/webview" },
-    // { path: "/webview2", component: "@/pages/lights/webview2" },
-    { path: "/2DImages", component: "@/pages/demos/2DImages" },
-
     // particle
+    { path: "/particle", component: "@/pages/particle/particle_base" },
     { path: "/particle_1", component: "@/pages/particle/particle_1" },
-    { path: "/ParticlGalaxy", component: "@/pages/particle/ParticlGalaxy" },
-    { path: "/particleObj", component: "@/pages/particle/particle" },
-    { path: "/particleMap", component: "@/pages/particle/particleMap" },
-    { path: "/particleMap2", component: "@/pages/particle/particleMap2" },
-    { path: "/particleMapSimple", component: "@/pages/particle/particleMapSimple" },
 
     // mzww
     { path: "/mz_geometry", component: "@/pages/mzww/geometry" },
-
-    // website
-    { path: "/lockControl", component: "@/pages/website/LockControl" },
-
-    // hall
-    { path: "/hall", component: "@/pages/demos/showroom" },
 
     // shader
     { path: "/raw", component: "@/pages/shaders/raw" },
     { path: "/demo", component: "@/pages/shaders/demo" },
     { path: "/IronBall", component: "@/pages/shaders/IronBall" },
-    { path: "/points", component: "@/pages/shaders/points" },
   ],
   // publicPath: "/public/",
   // publicPath: "/",

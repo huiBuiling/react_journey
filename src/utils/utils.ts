@@ -25,7 +25,7 @@ const setContent = (camera: PerspectiveCamera, controls: OrbitControls, object: 
   camera.position.x += size / 2.0;
   camera.position.y += size / 5.0;
   camera.position.z += size / 2.0;
-  camera.lookAt(center);
+  camera.lookAt(center); // 设置相机对象看向的位置
 
   console.log("camera", camera.position);
 
